@@ -17,7 +17,7 @@ const HabitToggle = ({ habit, date }: HabitToggleProps) => {
 
   return (
     <div className='text-center'>
-      <input name={'habitToggle_' + habit.id + date} type="checkbox" checked={isCompleted} onChange={handleToggle} className="h-6 w-6" />
+      <input name={`habitToggle_${habit.id}${date}`} type="checkbox" checked={isCompleted} onChange={handleToggle} className="h-6 w-6" />
     </div>
   );
 
