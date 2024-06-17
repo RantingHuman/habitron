@@ -6,15 +6,17 @@ import Layout from './Layout';
 // import { useEffect } from 'react';
 // import { useHabitronStore } from './stores/';
 import HabitDetail from './components/HabitDetail';
+import { useHabitronStore } from './stores';
 
 function App() {
   // const { addTestHabits } = useHabitronStore();
   // useEffect(() => {
   //  addTestHabits();
   // }, [addTestHabits]);
+  const { darkMode } = useHabitronStore();
   return (
     <HashRouter>
-      <div>
+      <div className={(darkMode ? 'dark' : '') + ' bg-white dark:bg-slate-800 text-black dark:text-white min-h-screen'}>
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<HabitList />} />

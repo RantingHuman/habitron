@@ -2,6 +2,7 @@ import { Store } from "@tauri-apps/plugin-store";
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { create } from 'zustand';
 import { createHabitSlice, type HabitSlice } from "./slices/habitSlice";
+import { createSystemSlice, type SystemSlice } from "./slices/systemSlice";
 
 const habitronTauriStore = new Store("./habitron.bin");
 
@@ -22,10 +23,11 @@ const getStorage = (store: Store): StateStorage => ({
   },
 });
 
-export const useHabitronStore = create<HabitSlice>()(
+export const useHabitronStore = create<HabitSlice & SystemSlice>()(
   persist(
     (...a) => ({
       ...createHabitSlice(...a),
+      ...createSystemSlice(...a)
     }),
     {
       name: 'habitron',
