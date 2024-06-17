@@ -1,6 +1,6 @@
 # Habitron
 
-Habitron is a habit tracking application partially inspired by Loop[https://github.com/iSoron/uhabits], being built with React + TypeScript and Tauri 2.0. It is currently a work in progress, with the primary goal being exploration and learning, while also building something I'd use regularly on desktop and mobile. The current tech stack also includes:
+Habitron is a habit tracking application partially inspired by [Loop](https://github.com/iSoron/uhabits), being built with React + TypeScript and Tauri 2.0. It is currently a work in progress, with the primary goal being exploration and learning, while also building something I'd use regularly on desktop and mobile. The current tech stack also includes:
 
 - React Router
 - Zustand
