@@ -1,14 +1,15 @@
 import { useHabitronStore } from '../stores';
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import FormInput from './form-elements/FormInput';
 import Button from './buttons/Button';
 import { createHabit } from '../utils/habitUtils';
+import { VALIDATION_MESSAGES } from '../utils/constants';
+import useHabitronNavigation from '../hooks/useHabitronNavigation';
 
 const HabitForm = () => {
   const { id } = useParams();
-
-  const navigate = useNavigate();
+  const { navigateToHome, navigateToViewHabit } = useHabitronNavigation();
   const { addHabit, updateHabit, getHabit } = useHabitronStore();
   const habit = getHabit(id);
   const [name, setName] = useState(habit?.name || '');
@@ -20,24 +21,24 @@ const HabitForm = () => {
   const handleCancel = (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
     e.preventDefault();
     if(habit) {
-      navigate(`/view-habit/${habit.id}`, { replace: true });
+      navigateToViewHabit(habit.id);  
     } else {
-      navigate('/', { replace: true });
+      navigateToHome();
     }
   }
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if(!validateForm()) {
-      setNameErrorMessage('Please enter a habit name');
+      setNameErrorMessage(VALIDATION_MESSAGES.HABIT_NAME_REQUIRED);
       return;
     }
     if (habit) {
       updateHabit({ ...habit, name, description });
-      navigate(`/view-habit/${habit.id}`);
+      navigateToViewHabit(habit.id);
     } else {
       addHabit(createHabit(name, description));
-      navigate('/');
+      navigateToHome();
     }
   };
 

@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import ThemeToggle from './ThemeToggle';
+import { ROUTES } from '../utils/constants';
 const Navbar = () => {
   return (
     <nav className='bg-blue-300 dark:bg-blue-700 text-2xl'>
@@ -12,7 +13,7 @@ const Navbar = () => {
         <div className='block w-auto'>
           <ul className='flex flex-row gap-2'>
             <li>
-              <NavLink to='/add-habit'>+</NavLink>
+              <NavLink to={ROUTES.ADD_HABIT}>+</NavLink>
             </li>
             <li>
               <ThemeToggle />

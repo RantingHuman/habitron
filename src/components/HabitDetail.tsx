@@ -7,12 +7,13 @@ import ConfirmationDialog from './dialogs/ConfirmationDialog';
 import { useState } from 'react';
 import Button from './buttons/Button';
 import HabitHistory from './HabitHistory';
+import useHabitronNavigation from '../hooks/useHabitronNavigation';
 // import HabitCalendar from './HabitCalendar';
 
 
 const HabitDetail = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
+  const { navigateToHome, navigateToEditHabit } = useHabitronNavigation();
   const { getHabit, removeHabit } = useHabitronStore();
   const [showDialog, setShowDialog] = useState(false);
 
@@ -21,17 +22,17 @@ const HabitDetail = () => {
   const handleDelete = () => {
     if(habit) removeHabit(habit.id);
     setShowDialog(false);
-    navigate('/', { replace: true });
+    navigateToHome();
   }
 
   const handleEdit = () => {
-    if(habit) navigate(`/edit-habit/${habit.id}`);
+    if(habit) navigateToEditHabit(habit.id);
   }
 
 
   return (
     habit ? (
-      <div className=''>
+      <div>
         <div className='col-span-1'>{habit.name}</div>
         <div className='col-span-5'>{habit.description}</div>
 
