@@ -8,13 +8,11 @@ interface HabitToggleProps {
 
 const HabitToggle = ({ habit, date }: HabitToggleProps) => {
   const { toggleHabitCompletion, getLog } = useHabitronStore();
-  console.log(date);
   const log = getLog(habit.id, date) || createLog(date);
   const isCompleted = log.completed;
 
   const handleToggle = () => {
     toggleHabitCompletion(habit, log);
-    console.log(habit.completionHistory);
   };
 
   return (

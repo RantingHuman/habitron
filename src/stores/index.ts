@@ -3,7 +3,7 @@ import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { create } from 'zustand';
 import { createHabitSlice, type HabitSlice } from "./slices/habitSlice";
 
-const privateStore = new Store("./store.bin");
+const habitronTauriStore = new Store("./habitron.bin");
 
 const getStorage = (store: Store): StateStorage => ({
   getItem: async (name: string): Promise<string | null> => {
@@ -29,6 +29,6 @@ export const useHabitronStore = create<HabitSlice>()(
     }),
     {
       name: 'habitron',
-      storage: createJSONStorage(() => getStorage(privateStore))
+      storage: createJSONStorage(() => getStorage(habitronTauriStore))
     })
 );

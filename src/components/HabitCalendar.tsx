@@ -1,3 +1,5 @@
+//WIP: Display a habit calendar with the correct completion status
+
 import {
   startOfMonth,
 

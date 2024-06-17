@@ -14,7 +14,7 @@ const HabitList = () => {
       {habits.map((habit) => (
         <HabitListItem key={habit.id} habit={habit} />
       ))}
-      {/* <Button appearance="danger" name="reset-habits" onClick={resetHabits}>Reset Habits</Button> */}
+      <Button appearance="danger" name="reset-habits" onClick={resetHabits}>Reset Habits</Button>
     </div>
     :
     <div>
