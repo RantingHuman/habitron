@@ -1,30 +1,24 @@
 # Habitron
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Habitron is a habit tracking application partially inspired by Loop[https://github.com/iSoron/uhabits], being built with React + TypeScript and Tauri 2.0. It is currently a work in progress, with the primary goal being exploration and learning, while also building something I'd use regularly on desktop and mobile. The current tech stack also includes:
 
-Currently, two official plugins are available:
+- React Router
+- Zustand
+- TailwindCSS
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
 
-## Expanding the ESLint configuration
+## Project Structure
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+The project is divided into two main parts:
 
-- Configure the top-level `parserOptions` property like this:
+- `src/`: This is where the main application code resides. It includes the React components, Zustand stores, utility functions etc.
+- `src-tauri/`: This directory contains the configuration and build files for the Tauri application.
 
-```js
-export default {
-  // other rules...
-  parserOptions: {
-    ecmaVersion: 'latest',
-    sourceType: 'module',
-    project: ['./tsconfig.json', './tsconfig.node.json'],
-    tsconfigRootDir: __dirname,
-  },
-}
+## Building and running the Project
+
+TODO
+
+```sh
+npm i
+npm run tauri dev
 ```
-
-- Replace `plugin:@typescript-eslint/recommended` to `plugin:@typescript-eslint/recommended-type-checked` or `plugin:@typescript-eslint/strict-type-checked`
-- Optionally add `plugin:@typescript-eslint/stylistic-type-checked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and add `plugin:react/recommended` & `plugin:react/jsx-runtime` to the `extends` list
