@@ -15,6 +15,7 @@ const HabitForm = () => {
   const [description, setDescription] = useState(habit?.description || '');
   // const [frequency, setFrequency] = useState(habit?.frequency || []);
 
+  const [nameErrorMessage, setNameErrorMessage] = useState('')
 
   const handleCancel = (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
     e.preventDefault();
@@ -27,6 +28,10 @@ const HabitForm = () => {
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if(!validateForm()) {
+      setNameErrorMessage('Please enter a habit name');
+      return;
+    }
     if (habit) {
       updateHabit({ ...habit, name, description });
       navigate(`/view-habit/${habit.id}`);
@@ -36,6 +41,10 @@ const HabitForm = () => {
     }
   };
 
+  const validateForm = () => {
+    return name.trim() !== '';
+  }
+
   return (
     <form onSubmit={handleSubmit} className='flex flex-col gap-6 mx-auto mb-4'>
       <FormInput
@@ -43,6 +52,7 @@ const HabitForm = () => {
         name="habit-name"
         value={name}
         onChange={(e) => setName(e.target.value)}
+        errorMessage={nameErrorMessage}
       />
       <FormInput
         label="Description"

@@ -3,7 +3,7 @@
 
 import { useHabitronStore } from '../stores';
 import { useParams, useNavigate } from 'react-router-dom';
-import ConfirmationDialog from './ConfirmationDialog';
+import ConfirmationDialog from './dialogs/ConfirmationDialog';
 import { useState } from 'react';
 import Button from './buttons/Button';
 import HabitHistory from './HabitHistory';
