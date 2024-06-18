@@ -1,0 +1,24 @@
+name: Habitron
+entities:
+  Habit:
+    properties:
+      - name
+      - description
+      - { name: startDate, type: date }
+
+  Log:
+    properties:
+      - { name: timestamp, type: date }
+      - { name: type, type: choice, options: { values: [manual, computed]}}
+      - { name: completed, type: boolean }
+    belongsTo:
+      - Habit
+
+  Streak:
+    properties:
+      - {name: value, type: number}
+      - {name: startDate, type: date}
+      - {name: endDate, type: date}
+      - {name: isCurrent, type: boolean}
+    belongsTo:
+      - Habit
