@@ -38,7 +38,7 @@ export const getActivityCalendarData = (habit: Habit) => {
   const filteredLogs = habit.completionHistory.filter(log => {
     const date = getDateFromTimestamp(log.timestamp);
     return date >= earliestDate;
-  }).sort((a, b) => b.timestamp - a.timestamp);
+  }).sort((a, b) => a.timestamp - b.timestamp);
 
   const activityData = filteredLogs.map(log => {
     const date = getDateFromTimestamp(log.timestamp);

@@ -6,6 +6,7 @@ import Layout from './Layout';
 // import { useEffect } from 'react';
 import { useHabitronStore } from './stores/';
 import HabitDetail from './components/HabitDetail';
+import { ROUTES } from './utils/constants';
 
 function App() {
   // const { addTestHabits } = useHabitronStore();
@@ -17,11 +18,11 @@ function App() {
     <HashRouter>
       <div className={(darkMode ? 'dark' : '') + ' bg-white dark:bg-slate-800 text-black dark:text-white min-h-screen'}>
         <Routes>
-          <Route path="/" element={<Layout />}>
+          <Route path={ROUTES.HOME} element={<Layout />}>
             <Route index element={<HabitList />} />
-            <Route path="add-habit" element={<HabitForm />} />
-            <Route path="edit-habit/:id" element={<HabitForm />} />
-            <Route path="view-habit/:id" element={<HabitDetail />} />
+            <Route path={ROUTES.ADD_HABIT} element={<HabitForm />} />
+            <Route path={ROUTES.EDIT_HABIT} element={<HabitForm />} />
+            <Route path={ROUTES.VIEW_HABIT} element={<HabitDetail />} />
           </Route>
         </Routes>
       </div>
