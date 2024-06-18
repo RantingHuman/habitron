@@ -1,7 +1,8 @@
 export const APP_NAME = 'Habitron';
-export const DAYS_TO_SHOW = 4;
+export const HOME_DAYS_TO_SHOW = 4;
 export const DATE_FORMAT_MON_DAY = 'MMM dd';
 export const DATE_FORMAT_FULL = 'yyyy-MM-dd';
+export const HISTORY_DAYS_TO_SHOW = 120;
 
 export const VALIDATION_MESSAGES = {
   HABIT_NAME_REQUIRED: 'Please enter a habit name.',

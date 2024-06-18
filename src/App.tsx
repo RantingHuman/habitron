@@ -4,9 +4,8 @@ import HabitForm from './components/HabitForm';
 import './App.css'
 import Layout from './Layout';
 // import { useEffect } from 'react';
-// import { useHabitronStore } from './stores/';
+import { useHabitronStore } from './stores/';
 import HabitDetail from './components/HabitDetail';
-import { useHabitronStore } from './stores';
 
 function App() {
   // const { addTestHabits } = useHabitronStore();

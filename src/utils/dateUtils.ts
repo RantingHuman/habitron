@@ -1,5 +1,5 @@
-import { format, parseISO, isSameDay } from 'date-fns';
-import { DATE_FORMAT_FULL } from './constants';
+import { format, parseISO, isSameDay, subDays } from 'date-fns';
+import { DATE_FORMAT_FULL, HISTORY_DAYS_TO_SHOW } from './constants';
 
 export const getLastNDates = (n: number, formatString: string = DATE_FORMAT_FULL) => {
   const MAX_N = 100;
@@ -32,4 +32,9 @@ export const getTimestampFromDate = (date: string) => {
 
 export const getDateFromTimestamp = (timestamp: string | number, formatString: string = DATE_FORMAT_FULL) => {
   return format(new Date(timestamp), formatString);
+}
+
+export const getEarliestDateForHistory = (formatString: string = DATE_FORMAT_FULL) => {
+  const today = new Date();
+  return format(subDays(today, HISTORY_DAYS_TO_SHOW), formatString);    
 }

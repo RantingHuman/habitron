@@ -1,7 +1,7 @@
 import { Habit } from '../types/';
 import HabitToggle from './HabitToggle';
 import { getLastNDates } from '../utils/dateUtils';
-import { DAYS_TO_SHOW } from '../utils/constants';
+import { HOME_DAYS_TO_SHOW } from '../utils/constants';
 import { NavLink } from 'react-router-dom';
 import { useMemo } from 'react';
 
@@ -10,7 +10,7 @@ interface HabitListItemProps {
 }
 
 const HabitListItem = ({ habit }: HabitListItemProps) => {
-  const lastNDates = useMemo(() => getLastNDates(DAYS_TO_SHOW), []);
+  const lastNDates = useMemo(() => getLastNDates(HOME_DAYS_TO_SHOW), []);
 
   return (
     <div className='grid grid-cols-7 odd:dark:bg-slate-700 odd:bg-slate-300 p-2'>
