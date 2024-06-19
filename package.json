@@ -16,12 +16,12 @@
     "@mnfst/sdk": "^0.1.0-alpha.1",
     "@tauri-apps/plugin-store": "^2.0.0-beta.5",
     "date-fns": "^3.6.0",
-    "manifest": "^4.0.0-alpha.8",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.23.1",
     "uuid": "^10.0.0",
-    "zustand": "^4.5.2"
+    "zustand": "^4.5.2",
+    "manifest": "^4.0.0-alpha.8"
   },
   "devDependencies": {
     "@tailwindcss/forms": "^0.5.7",

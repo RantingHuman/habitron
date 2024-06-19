@@ -3,25 +3,23 @@ import HabitListItem from './HabitListItem';
 import HabitListHeader from './HabitListHeader';
 import Button from './buttons/Button';
 import { NavLink } from 'react-router-dom';
-import Manifest from '@mnfst/sdk';
 import { useEffect, useState } from 'react';
 import { Habit } from '../types';
+import { getAllHabitData } from '../utils/manifestUtils';
 
 const HabitList = () => {
   const { habits, resetHabits } = useHabitronStore();
   const [manifestData, setManifestData] = useState<Habit[]>([]);
 
   useEffect(() => {
-    const manifest = new Manifest();
-
-    manifest.from("habits")
-    .find<Habit>()
+    getAllHabitData()
     .then((res) => {
-      setManifestData(res);
+      console.log(res);
+      setManifestData(res.data);
     })
   },[]);
   return (
-  habits.length > 0 ?
+  (habits.length > 0  || manifestData.length > 0) ?
     <div>
       
       {<HabitListHeader />}
