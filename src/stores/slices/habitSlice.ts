@@ -27,7 +27,7 @@ const getLog = (habits: Habit[], habitId: string, date: string): Log | undefined
 const toggleHabitCompletion = (habit: Habit, log: Log): Habit => {
   log.completed = !log.completed;
   const completionHistory = habit.completionHistory || [];
-  if(!completionHistory.includes(log)) {
+  if (!completionHistory.includes(log)) {
     completionHistory.push(log);
   } else {
     completionHistory.map((l) => l.id === log.id ? log : l);
