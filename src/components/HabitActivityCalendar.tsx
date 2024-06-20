@@ -3,13 +3,14 @@ import { Habit } from '../types/';
 import { getActivityCalendarData } from '../utils/habitUtils';
 import { useMemo } from 'react';
 import { useHabitronStore } from '../stores';
+import { CALENDAR_THEME_COLORS } from '../utils/constants';
 
 const HabitActivityCalendar = ({ habit }: { habit: Habit }) => {
   const { darkMode } = useHabitronStore();
   const scheme = darkMode ? 'dark' : 'light';
   const theme = {
-    light: ['rgb(209, 213, 219)', 'rgb(147, 197, 253)'],
-    dark: ['rgb(51, 65, 85)', 'rgb(29, 78, 216)']
+    light: [CALENDAR_THEME_COLORS.LIGHT_INACTIVE, CALENDAR_THEME_COLORS.LIGHT_ACTIVE],
+    dark: [CALENDAR_THEME_COLORS.DARK_INACTIVE, CALENDAR_THEME_COLORS.DARK_ACTIVE]
   }
   const blockRadius = 0;
   const blockSize = 20;
