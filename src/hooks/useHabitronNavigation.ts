@@ -4,8 +4,8 @@ import { ROUTES } from "../utils/constants";
 interface HabitronNavigationHook {
   navigateToAddHabit: () => void;
   navigateToHome: () => void;
-  navigateToViewHabit: (habitId: string) => void;
-  navigateToEditHabit: (habitId: string) => void;
+  navigateToViewHabit: (habitId: number) => void;
+  navigateToEditHabit: (habitId: number) => void;
 }
 
 const useHabitronNavigation = (): HabitronNavigationHook => {
@@ -13,9 +13,9 @@ const useHabitronNavigation = (): HabitronNavigationHook => {
 
   const navigateToAddHabit = () => navigate(ROUTES.ADD_HABIT);
   const navigateToHome = () => navigate(ROUTES.HOME);
-  const navigateToViewHabit = (habitId: string) =>
+  const navigateToViewHabit = (habitId: number) =>
     navigate(generatePath(ROUTES.VIEW_HABIT, { id: habitId }));
-  const navigateToEditHabit = (habitId: string) =>
+  const navigateToEditHabit = (habitId: number) =>
     navigate(generatePath(ROUTES.EDIT_HABIT, { id: habitId }));
 
   return { navigateToAddHabit, navigateToHome, navigateToViewHabit, navigateToEditHabit };

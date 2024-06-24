@@ -4,7 +4,7 @@ import { getToday, getCurrentTimestamp, getTimestampFromDate, getDateFromTimesta
 
 export const createHabit = (name: string, description: string) => {
   const newHabit: Habit = {
-    id: uuidv4(),
+    id: -1,
     name,
     description,
     frequency: [],
@@ -18,8 +18,9 @@ export const createHabit = (name: string, description: string) => {
 
 export const createLog = (date?: string, type: 'manual' | 'computed' = 'manual', completed: boolean = false) => {
   const newLog: Log = {
-    id: uuidv4(),
-    timestamp: date ? getTimestampFromDate(date) : getCurrentTimestamp(),
+    id: -1,
+    logDate: date || getToday(),
+    logTimestamp: getCurrentTimestamp(),
     type,
     completed
   };

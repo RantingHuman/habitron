@@ -1,4 +1,4 @@
-import { useHabitronStore } from '../stores';
+// import { useHabitronStore } from '../stores';
 import HabitListItem from './HabitListItem';
 import HabitListHeader from './HabitListHeader';
 import Button from './buttons/Button';
@@ -8,25 +8,27 @@ import { Habit } from '../types';
 import { getAllHabitData } from '../utils/manifestUtils';
 
 const HabitList = () => {
-  const { habits, resetHabits } = useHabitronStore();
-  const [manifestData, setManifestData] = useState<Habit[]>([]);
+  // const { habits, resetHabits } = useHabitronStore();
+  const [habitData, setHabitData] = useState<Habit[]>([]);
 
   useEffect(() => {
-    getAllHabitData()
-    .then((res) => {
-      console.log(res);
-      setManifestData(res.data);
-    })
+    loadHabits();
   },[]);
+
+  const loadHabits = async () => {
+    const habits = await getAllHabitData();
+    setHabitData(habits.data);
+  }
+
   return (
-  (habits.length > 0  || manifestData.length > 0) ?
+  (habitData.length > 0) ?
     <div>
       
       {<HabitListHeader />}
-      {manifestData.map((habit) => (
+      {habitData.map((habit) => (
         <HabitListItem key={habit.id} habit={habit} />
       ))}
-      <Button appearance="danger" name="reset-habits" onClick={resetHabits}>Reset Habits</Button>
+      {/* <Button appearance="danger" name="reset-habits" onClick={resetHabits}>Reset Habits</Button> */}
     </div>
     :
     <div>

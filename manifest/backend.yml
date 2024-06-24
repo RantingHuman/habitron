@@ -5,10 +5,11 @@ entities:
       - name
       - description
       - { name: startDate, type: date }
+      - { name: active, type: boolean }
 
   Log:
     properties:
-      - { name: timestamp, type: date }
+      - { name: timestamp, type: number }
       - { name: type, type: choice, options: { values: [manual, computed]}}
       - { name: completed, type: boolean }
     belongsTo:

@@ -1,19 +1,31 @@
-import { useHabitronStore } from '../stores';
-import { useState } from 'react';
+// import { useHabitronStore } from '../stores';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import FormInput from './form-elements/FormInput';
 import Button from './buttons/Button';
 import { createHabit } from '../utils/habitUtils';
 import { VALIDATION_MESSAGES } from '../utils/constants';
 import useHabitronNavigation from '../hooks/useHabitronNavigation';
+import { addHabitData, updateHabitData, getHabitData } from '../utils/manifestUtils';
+import { Habit } from '../types';
 
 const HabitForm = () => {
   const { id } = useParams();
   const { navigateToHome, navigateToViewHabit } = useHabitronNavigation();
-  const { addHabit, updateHabit, getHabit } = useHabitronStore();
-  const habit = getHabit(id);
+  // const { addHabit, updateHabit, getHabit } = useHabitronStore();
+  const [habit, setHabit] = useState({} as Habit);
   const [name, setName] = useState(habit?.name || '');
   const [description, setDescription] = useState(habit?.description || '');
+  useEffect(() => {
+    if (id) {
+      loadHabit(id);    
+    }
+  }, [id]);
+  
+  const loadHabit = async (id: string) => {
+    const habit = await getHabitData(Number(id));
+    setHabit(habit);
+  }
   // const [frequency, setFrequency] = useState(habit?.frequency || []);
 
   const [nameErrorMessage, setNameErrorMessage] = useState('')
@@ -34,10 +46,10 @@ const HabitForm = () => {
       return;
     }
     if (habit) {
-      updateHabit({ ...habit, name, description });
+      updateHabitData({ ...habit, name, description });
       navigateToViewHabit(habit.id);
     } else {
-      addHabit(createHabit(name, description));
+      addHabitData(createHabit(name, description));
       navigateToHome();
     }
   };
