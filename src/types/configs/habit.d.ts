@@ -1,7 +1,7 @@
 // interface for the habit
 import { Log } from './log';
 export interface Habit {
-    id: number;
+    id?: number;
     name: string;
     description?: string;
     frequency: string[]; // days of the week

@@ -1,4 +1,4 @@
-import { format, parseISO, isSameDay, subDays } from 'date-fns';
+import { format, parseISO, isSameDay, subDays, startOfDay, endOfDay } from 'date-fns';
 import { DATE_FORMAT_FULL, HISTORY_DAYS_TO_SHOW } from './constants';
 
 export const getLastNDates = (n: number, formatString: string = DATE_FORMAT_FULL) => {
@@ -37,4 +37,10 @@ export const getDateFromTimestamp = (timestamp: string | number, formatString: s
 export const getEarliestDateForHistory = (formatString: string = DATE_FORMAT_FULL) => {
   const today = new Date();
   return format(subDays(today, HISTORY_DAYS_TO_SHOW), formatString);    
+}
+
+export const getTimestampRangeForDate = (date: string) => {
+  const startTime = startOfDay(parseISO(date)).getTime();
+  const endTime = endOfDay(parseISO(date)).getTime();
+  return { startTime, endTime }; 
 }

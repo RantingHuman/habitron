@@ -9,11 +9,12 @@ entities:
 
   Log:
     properties:
-      - { name: timestamp, type: number }
+      - { name: logDate, type: date }
+      - { name: logTimestamp, type: number }
       - { name: type, type: choice, options: { values: [manual, computed]}}
       - { name: completed, type: boolean }
     belongsTo:
-      - Habit
+      - { entity: Habit, eager: true }
 
   Streak:
     properties:

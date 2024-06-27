@@ -8,9 +8,9 @@ interface LogState {
 
 interface LogActions {
   addLog: (log: Log) => void;
-  removeLog: (logId: string) => void;
+  removeLog: (logId: number) => void;
   updateLog: (log: Log) => void;
-  getLog: (logId: string) => Log | null;
+  getLog: (logId: number) => Log | null;
   resetLogs: () => void;
 }
 

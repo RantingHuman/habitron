@@ -32,7 +32,7 @@ const HabitForm = () => {
 
   const handleCancel = (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
     e.preventDefault();
-    if(habit) {
+    if(habit && habit.id) {
       navigateToViewHabit(habit.id);  
     } else {
       navigateToHome();
@@ -45,7 +45,7 @@ const HabitForm = () => {
       setNameErrorMessage(VALIDATION_MESSAGES.HABIT_NAME_REQUIRED);
       return;
     }
-    if (habit) {
+    if (habit && habit.id) {
       updateHabitData({ ...habit, name, description });
       navigateToViewHabit(habit.id);
     } else {

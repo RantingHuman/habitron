@@ -1,28 +1,26 @@
 import { Habit, Log } from '../types/';
-import {v4 as uuidv4} from 'uuid';
-import { getToday, getCurrentTimestamp, getTimestampFromDate, getDateFromTimestamp, getEarliestDateForHistory } from './dateUtils';
+import { getToday, getCurrentTimestamp, getTimestampFromDate, getEarliestDateForHistory } from './dateUtils';
 
 export const createHabit = (name: string, description: string) => {
   const newHabit: Habit = {
-    id: -1,
     name,
     description,
     frequency: [],
     streak: 0,
     startDate: getToday(),
-    completionHistory: []
+    logs: []
   };
 
   return newHabit;
 }
 
-export const createLog = (date?: string, type: 'manual' | 'computed' = 'manual', completed: boolean = false) => {
+export const createLog = (habit: Habit, date?: string, type: 'manual' | 'computed' = 'manual', completed: boolean = false) => {
   const newLog: Log = {
-    id: -1,
     logDate: date || getToday(),
     logTimestamp: getCurrentTimestamp(),
     type,
-    completed
+    completed,
+    habit
   };
 
   return newLog;
@@ -36,13 +34,12 @@ export const getActivityCalendarData = (habit: Habit) => {
   let todayExists = false;
   let earliestDateExists = false;
 
-  const filteredLogs = habit.completionHistory.filter(log => {
-    const date = getDateFromTimestamp(log.timestamp);
-    return date >= earliestDate;
-  }).sort((a, b) => a.timestamp - b.timestamp);
+  const filteredLogs = habit.logs.filter(log => {
+    return log.logDate >= earliestDate;
+  }).sort((a, b) => getTimestampFromDate(a.logDate) - getTimestampFromDate(b.logDate));
 
   const activityData = filteredLogs.map(log => {
-    const date = getDateFromTimestamp(log.timestamp);
+    const date = log.logDate;
     const count = log.completed ? 1 : 0;
     const level = log.completed ? 1 : 0;
 

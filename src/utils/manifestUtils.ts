@@ -18,11 +18,29 @@ export const addHabitData = async (habit: Habit) => {
 }
 
 export const updateHabitData = async (habit: Habit) => {
+  if (typeof habit.id === 'undefined') {
+    throw new Error('habit.id is undefined');
+  }
   const manifest = new Manifest();
   return await manifest.from("habits").update<Habit>(habit.id, habit);
 }
 
 export const addLogData = async (log: Log) => {
   const manifest = new Manifest();
-  return await manifest.from("habits").create<Log>(log);
+  return await manifest.from("logs").create<Log>(log);
+}
+
+export const getLogData = async (habit: Habit, date: string) => {
+  const manifest = new Manifest();
+  return await manifest.from("logs").where(`habit = ${habit.id}`)
+  .andWhere(`logDate = ${date}`)
+  .find<Log>();
+}
+
+export const updateLogData = async (log: Log) => {
+  if (typeof log.id === 'undefined') {
+    throw new Error('log.id is undefined');
+  }
+  const manifest = new Manifest();
+  return await manifest.from("logs").update<Log>(log.id, log);
 }

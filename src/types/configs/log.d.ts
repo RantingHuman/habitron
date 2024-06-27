@@ -1,7 +1,7 @@
 import { Habit } from "./habit";
 
 export interface Log {
-  id: number;
+  id?: number;
   logDate: string;
   logTimestamp: number;
   type: 'manual' | 'computed';
