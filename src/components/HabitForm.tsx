@@ -47,7 +47,7 @@ const HabitForm = () => {
   }
 
   return (
-    <form onSubmit={handleSubmit} className='flex flex-col gap-6 mx-auto mb-4'>
+    <form onSubmit={handleSubmit} className='flex flex-col gap-4 dark:bg-slate-700 bg-amber-200 rounded-md p-4 border border-black'>
       <FormInput
         label="Name"
         name="habit-name"

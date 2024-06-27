@@ -18,7 +18,7 @@ const FormInput = ({ label, type = 'text', name, value, placeholder = '', errorM
       <input 
         name={name} 
         className={ 
-          'block mt-1 w-full rounded-md dark:bg-gray-700' 
+          'block mt-1 w-full rounded-md' 
           + (errorMessage ? ' border-red-500 dark:border-red-700' : '')
         }
         type={type} 

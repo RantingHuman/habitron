@@ -8,8 +8,7 @@ const HabitList = () => {
   const { habits, resetHabits } = useHabitronStore();
   return (
   habits.length > 0 ?
-    <div>
-      
+    <div>      
       {<HabitListHeader />}
       <ul>
         {habits.map((habit) => (
@@ -23,9 +22,12 @@ const HabitList = () => {
     <div>
       <p>No habits yet! Add one to get started.</p>
       <br />
-      <Button appearance="primary" name="add-habit">
-        <NavLink to="/add-habit">Add Habit</NavLink>
-      </Button>
+        <NavLink to="/add-habit">
+          <Button appearance="primary" name="add-habit">
+            Add Habit
+          </Button>
+        </NavLink>
+
     </div>
   );
 }

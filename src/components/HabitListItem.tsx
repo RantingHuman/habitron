@@ -13,7 +13,7 @@ const HabitListItem = ({ habit }: HabitListItemProps) => {
   const lastNDates = useMemo(() => getLastNDates(HOME_DAYS_TO_SHOW), []);
 
   return (
-    <li className='grid grid-cols-7 dark:bg-slate-700 bg-amber-200 odd:bg-amber-100  dark:odd:bg-slate-600 p-2 last:rounded-b-md'>
+    <li className='grid grid-cols-7 dark:bg-slate-700 bg-amber-200 odd:bg-amber-100  dark:odd:bg-slate-600 p-4 border-x border-black last:rounded-b-md last:border-b'>
       <div className='col-span-3 truncate'>
         <NavLink to={`/view-habit/${habit.id}`}>
           {habit.name}
