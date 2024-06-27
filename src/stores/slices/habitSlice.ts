@@ -1,7 +1,6 @@
 import { StateCreator } from 'zustand';
 import { Habit, Log } from '../../types/';
 import testHabits from '../../data/testHabits';
-import { getDateFromTimestamp } from '../../utils/dateUtils';
 
 export interface HabitSlice {
   habits: Habit[];
@@ -22,12 +21,12 @@ const getHabit = (habits: Habit[], id: string): Habit | undefined => habits.find
 const getLog = (habits: Habit[], habitId: string, date: string): Log | undefined => {
   const habit = getHabit(habits, habitId);
   if (!habit) return;
-  return habit.completionHistory.find((log: Log) => getDateFromTimestamp(log.timestamp) === date);
+  return habit.completionHistory.find((log: Log) => log.date === date);
 }
 const toggleHabitCompletion = (habit: Habit, log: Log): Habit => {
   log.completed = !log.completed;
   const completionHistory = habit.completionHistory || [];
-  if (!completionHistory.includes(log)) {
+  if (!completionHistory.some((l) => l.id === log.id)) {
     completionHistory.push(log);
   } else {
     completionHistory.map((l) => l.id === log.id ? log : l);

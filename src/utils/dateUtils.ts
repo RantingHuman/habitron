@@ -38,3 +38,7 @@ export const getEarliestDateForHistory = (formatString: string = DATE_FORMAT_FUL
   const today = new Date();
   return format(subDays(today, HISTORY_DAYS_TO_SHOW), formatString);    
 }
+
+export const dateComparator = (date1: string, date2: string) => {
+  return parseISO(date1).getTime() - parseISO(date2).getTime();
+}
