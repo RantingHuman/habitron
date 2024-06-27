@@ -9,9 +9,9 @@ interface ButtonProps {
 
 const Button = ({ type, name, className = '', appearance = 'secondary', onClick, children }: ButtonProps) => {
   const appearanceClasses = {
-    primary: 'dark:bg-blue-700 bg-blue-500',
-    danger: 'dark:bg-red-700 bg-red-500',
-    secondary: 'dark:bg-gray-700 bg-gray-500',
+    primary: 'dark:bg-blue-700 bg-orange-400',
+    danger: 'dark:bg-red-700 bg-red-400',
+    secondary: 'dark:bg-gray-700 bg-orange-100',
   }[appearance];
   
   return (
@@ -21,7 +21,8 @@ const Button = ({ type, name, className = '', appearance = 'secondary', onClick,
       type={type} 
       className={`${className} 
                   ${appearanceClasses} 
-                  text-white px-4 py-2 rounded-md`
+                  px-4 py-2 rounded-md shadow-custom active:shadow-inner active:opacity-85 hover:opacity-90 dark:shadow-custom-dark
+                  `
                 }
     >
       {children}

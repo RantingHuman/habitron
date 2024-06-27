@@ -16,7 +16,7 @@ function App() {
   const { darkMode } = useHabitronStore();
   return (
     <HashRouter>
-      <div className={(darkMode ? 'dark' : '') + ' bg-white dark:bg-slate-800 text-black dark:text-white min-h-screen'}>
+      <div className={(darkMode ? 'dark' : '') + ' bg-sky-200 dark:bg-slate-950 text-neutral-800 dark:text-neutral-200 min-h-screen'}>
         <Routes>
           <Route path={ROUTES.HOME} element={<Layout />}>
             <Route index element={<HabitList />} />

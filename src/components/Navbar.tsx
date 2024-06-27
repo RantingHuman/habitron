@@ -1,23 +1,19 @@
 import { NavLink } from 'react-router-dom';
-import ThemeToggle from './ThemeToggle';
 import { ROUTES } from '../utils/constants';
 const Navbar = () => {
   return (
-    <nav className='bg-blue-300 dark:bg-blue-700 text-2xl'>
-      <div className='max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4'>
+    <nav className='bg-orange-200 dark:bg-blue-900 text-2xl text-orange-600 dark:text-inherit'>
+      <div className='max-w-screen-xl flex font-bold flex-wrap items-center justify-between mx-auto p-4'>
 
         <NavLink to='/'>
-          <span className="self-center text-2xl font-semibold whitespace-nowrap">Habitron</span>
+          <h1 className="self-center text-3xl uppercase whitespace-nowrap drop-shadow-custom">Habitron</h1>
         </NavLink>
 
         <div className='block w-auto'>
           <ul className='flex flex-row gap-2'>
             <li>
               <NavLink to={ROUTES.ADD_HABIT}>+</NavLink>
-            </li>
-            <li>
-              <ThemeToggle />
-            </li>
+            </li>            
           </ul>
         </div>
 

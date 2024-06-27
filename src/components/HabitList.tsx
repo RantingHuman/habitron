@@ -11,9 +11,12 @@ const HabitList = () => {
     <div>
       
       {<HabitListHeader />}
-      {habits.map((habit) => (
-        <HabitListItem key={habit.id} habit={habit} />
-      ))}
+      <ul>
+        {habits.map((habit) => (
+          <HabitListItem key={habit.id} habit={habit} />
+        ))}
+      </ul>
+      <br />
       <Button appearance="danger" name="reset-habits" onClick={resetHabits}>Reset Habits</Button>
     </div>
     :
