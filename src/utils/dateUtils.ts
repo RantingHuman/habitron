@@ -1,17 +1,14 @@
-import { format, parseISO, isSameDay, subDays } from 'date-fns';
+import { format, parseISO, isSameDay, subDays, eachDayOfInterval } from 'date-fns';
 import { DATE_FORMAT_FULL, HISTORY_DAYS_TO_SHOW } from './constants';
 
-export const getLastNDates = (n: number, formatString: string = DATE_FORMAT_FULL) => {
+export const getLastNDates = (n: number) => {
   const MAX_N = 100;
   if(n <= 0) return [];
   if(n > MAX_N) n = MAX_N;
-  const today = new Date();
-  const lastNDates = Array.from({ length: n }, (_, i) => {
-    const date = new Date(today);
-    date.setDate(today.getDate() - i);
-    return format(date, formatString);
+  return eachDayOfInterval({
+    end: subDays(new Date(), n - 1),
+    start: new Date()
   });
-  return lastNDates;
 };
 
 export const getToday = (formatString: string = DATE_FORMAT_FULL) => {

@@ -3,16 +3,21 @@ import HabitListItem from './HabitListItem';
 import HabitListHeader from './HabitListHeader';
 import Button from './buttons/Button';
 import { NavLink } from 'react-router-dom';
+import { getLastNDates } from '../utils/dateUtils';
+import { HOME_DAYS_TO_SHOW } from '../utils/constants';
+import { useMemo } from 'react';
+
 
 const HabitList = () => {
   const { habits, resetHabits } = useHabitronStore();
+  const lastNDates = useMemo(() => getLastNDates(HOME_DAYS_TO_SHOW), []);
   return (
   habits.length > 0 ?
     <div>      
-      {<HabitListHeader />}
+      {<HabitListHeader dates={lastNDates} />}
       <ul>
         {habits.map((habit) => (
-          <HabitListItem key={habit.id} habit={habit} />
+          <HabitListItem key={habit.id} habit={habit} dates={lastNDates} />
         ))}
       </ul>
       <br />
