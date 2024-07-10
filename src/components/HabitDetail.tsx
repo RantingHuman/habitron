@@ -2,12 +2,13 @@
 // Eventually this will have completion history and other details
 
 import { useHabitronStore } from '../stores';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import ConfirmationDialog from './dialogs/ConfirmationDialog';
 import { useState } from 'react';
 import Button from './buttons/Button';
 import HabitHistory from './HabitHistory';
 import useHabitronNavigation from '../hooks/useHabitronNavigation';
+import Card from './Card';
 // import HabitCalendar from './HabitCalendar';
 
 
@@ -32,9 +33,10 @@ const HabitDetail = () => {
 
   return (
     habit ? (
-      <div>
-        <div className='col-span-1'>{habit.name}</div>
-        <div className='col-span-5'>{habit.description}</div>
+      <>
+      <Card header={habit.name}>
+      
+        <div >{habit.description}</div>
 
         <div className='flex justify-end gap-6 mt-4'>
           <Button name='edit' appearance='primary' onClick={handleEdit}>Edit</Button>
@@ -45,11 +47,10 @@ const HabitDetail = () => {
           <ConfirmationDialog isOpen={showDialog} title='Delete Habit' message='Are you sure you want to delete this habit?'
            onConfirm={handleDelete} onCancel={() => setShowDialog(false)} />
         }
-
+      </Card>      
         <HabitHistory habit={habit} />
-        {/* <HabitCalendar habitStartDate={habit.startDate} completedDates={habit.completedDates} /> */}
-      </div>
-      
+        {/* <HabitCalendar habitStartDate={habit.startDate} completedDates={habit.completedDates} /> */}      
+      </>
     ) : (
       <div>Habit not found</div>
     )

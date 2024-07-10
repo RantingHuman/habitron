@@ -2,6 +2,7 @@
 // TODO: Handle unlogged days
 import { Habit } from '../types/';
 import HabitActivityCalendar from './HabitActivityCalendar';
+import Card from './Card';
 
 interface HabitHistoryProps {
   habit: Habit;  
@@ -9,10 +10,9 @@ interface HabitHistoryProps {
 
 const HabitHistory = ({ habit }: HabitHistoryProps) => {
   return (
-    <div>
-      <h1>History</h1>
+    <Card header='History'>
       <HabitActivityCalendar habit={habit}/>
-    </div>
+    </Card>
   )
 };
 
