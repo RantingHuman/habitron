@@ -1,4 +1,4 @@
-import ActivityCalendar from 'react-activity-calendar';
+import ActivityCalendar, { Activity, BlockElement } from 'react-activity-calendar';
 import { Habit } from '../types/';
 import { getActivityCalendarData } from '../utils/habitUtils';
 import { useMemo } from 'react';
@@ -13,18 +13,39 @@ const HabitActivityCalendar = ({ habit }: { habit: Habit }) => {
     dark: [CALENDAR_THEME_COLORS.DARK_INACTIVE, CALENDAR_THEME_COLORS.DARK_ACTIVE]
   }
   const blockRadius = 0;
-  const blockSize = 20;
+  const blockSize = 30;
+
+  const renderBlock = (block: BlockElement, activity: Activity) => {
+    const {x, y, width, height } = block.props;
+
+    const textX = parseFloat(x) + parseFloat(width) / 2;
+    const textY = parseFloat(y) + parseFloat(height) / 2;
+
+    return (
+      <g>
+        {block}
+        <text x={textX} y={textY} textAnchor="middle" alignmentBaseline="middle" fontSize="10" fill="black">
+          {activity.date.split('-')[2]}
+        </text>
+      </g>
+    )
+
+  }
 
 
   const activityData = useMemo(() => getActivityCalendarData(habit), [habit]);
   return (
-    <ActivityCalendar data={activityData} 
-    maxLevel={1} 
-    hideColorLegend={true} 
-    colorScheme={scheme} 
-    theme={theme}
-    blockRadius={blockRadius}
-    blockSize={blockSize} />
+    <div className='text-center'>
+      <ActivityCalendar data={activityData}
+        maxLevel={1}
+        hideColorLegend={true}
+        colorScheme={scheme}
+        theme={theme}
+        blockRadius={blockRadius}
+        blockSize={blockSize}   
+        renderBlock={renderBlock}     
+         />
+    </div>
   );
 }
 
