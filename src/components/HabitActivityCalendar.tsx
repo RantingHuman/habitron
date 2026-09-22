@@ -15,11 +15,14 @@ const HabitActivityCalendar = ({ habit }: { habit: Habit }) => {
   const blockRadius = 0;
   const blockSize = 30;
 
+  const parseCoordinate = (value: string | number | undefined) =>
+    typeof value === 'number' ? value : Number.parseFloat(value ?? '0');
+
   const renderBlock = (block: BlockElement, activity: Activity) => {
     const {x, y, width, height } = block.props;
 
-    const textX = parseFloat(x) + parseFloat(width) / 2;
-    const textY = parseFloat(y) + parseFloat(height) / 2;
+    const textX = parseCoordinate(x) + parseCoordinate(width) / 2;
+    const textY = parseCoordinate(y) + parseCoordinate(height) / 2;
 
     return (
       <g>

@@ -1,4 +1,8 @@
-import { Habit } from '../types/';
+import { Habit, Log } from '../types/';
+import { getDateFromTimestamp } from '../utils/dateUtils';
+
+const withDates = (logs: Omit<Log, 'date'>[]): Log[] =>
+    logs.map((log) => ({ ...log, date: getDateFromTimestamp(log.timestamp) }));
 
 const testHabits: Habit[] = [
     {
@@ -8,7 +12,7 @@ const testHabits: Habit[] = [
         frequency: ['daily'],
         startDate: '2024-05-25',
         streak: 3,
-        completionHistory: [
+        completionHistory: withDates([
             {
                 id: '1',
                 type: 'manual',
@@ -87,7 +91,7 @@ const testHabits: Habit[] = [
                 timestamp: 1623009600000,
                 completed: true
             }
-        ]
+        ])
         
     },
     {
@@ -97,7 +101,7 @@ const testHabits: Habit[] = [
         frequency: ['daily'],
         startDate: '2024-05-25',
         streak: 2,
-        completionHistory: [
+        completionHistory: withDates([
             {
                 id: '1',
                 type: 'manual',
@@ -176,7 +180,7 @@ const testHabits: Habit[] = [
                 timestamp: 1623009600000,
                 completed: true
             }
-        ]
+        ])
     },
     {
         id: '3',
@@ -185,7 +189,7 @@ const testHabits: Habit[] = [
         frequency: ['daily'],
         startDate: '2024-05-25',
         streak: 3,
-        completionHistory: [
+        completionHistory: withDates([
             {
                 id: '1',
                 type: 'manual',
@@ -264,7 +268,7 @@ const testHabits: Habit[] = [
                 timestamp: 1623009600000,
                 completed: true
             }
-        ]
+        ])
     }
 ]
 
