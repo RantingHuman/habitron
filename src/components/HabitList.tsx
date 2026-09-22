@@ -3,14 +3,31 @@ import HabitListItem from './HabitListItem';
 import HabitListHeader from './HabitListHeader';
 import Button from './buttons/Button';
 import { NavLink } from 'react-router-dom';
-import { getLastNDates } from '../utils/dateUtils';
+import { parseISO } from 'date-fns';
+import { getLastNDates, getToday } from '../utils/dateUtils';
 import { HOME_DAYS_TO_SHOW } from '../utils/constants';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 
 const HabitList = () => {
   const { habits, resetHabits } = useHabitronStore();
-  const lastNDates = useMemo(() => getLastNDates(HOME_DAYS_TO_SHOW), []);
+  const [today, setToday] = useState(() => getToday());
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setToday((currentToday) => {
+        const nextToday = getToday();
+        return nextToday === currentToday ? currentToday : nextToday;
+      });
+    }, 60_000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  const lastNDates = useMemo(
+    () => getLastNDates(HOME_DAYS_TO_SHOW, parseISO(today)),
+    [today]
+  );
   return (
   habits.length > 0 ?
     <div>      

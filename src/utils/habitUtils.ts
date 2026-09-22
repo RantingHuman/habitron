@@ -1,8 +1,8 @@
 import { format, isBefore, parseISO, subDays } from 'date-fns';
 import { Habit, Log } from '../types/';
 import {v4 as uuidv4} from 'uuid';
-import { DAILY_FREQUENCY, DATE_FORMAT_FULL } from './constants';
-import { getToday, getCurrentTimestamp, dateComparator, getEarliestDateForHistory } from './dateUtils';
+import { DAILY_FREQUENCY, DATE_FORMAT_FULL, HISTORY_DAYS_TO_SHOW } from './constants';
+import { getToday, getCurrentTimestamp, getLastNDates } from './dateUtils';
 
 export const createHabit = (name: string, description: string, frequency: string[] = [DAILY_FREQUENCY]) => {
   const newHabit: Habit = {
@@ -68,48 +68,19 @@ export const getCurrentStreak = (habit: Habit, referenceDate: string = getToday(
 }
 
 export const getActivityCalendarData = (habit: Habit) => {
-  const earliestDate = getEarliestDateForHistory();
-  const today = getToday();
-  console.log(earliestDate);
+  const logsByDate = new Map(
+    habit.completionHistory.map((log) => [log.date, log])
+  );
 
-  let todayExists = false;
-  let earliestDateExists = false;
+  return getLastNDates(HISTORY_DAYS_TO_SHOW + 1).map((date) => {
+    const formattedDate = format(date, DATE_FORMAT_FULL);
+    const log = logsByDate.get(formattedDate);
+    const level = log?.completed ? 1 : 0;
 
-  const filteredLogs = habit.completionHistory.filter(log => {    
-    return log.date >= earliestDate;
-  }).sort((a, b) => dateComparator(a.date, b.date));
-
-  const activityData = filteredLogs.map(log => {
-    const date = log.date;
-    const count = log.completed ? 1 : 0;
-    const level = log.completed ? 1 : 0;
-
-    if (date === today) {
-      todayExists = true;
-    }
-
-    if (date === earliestDate) {
-      earliestDateExists = true;
-    }
-
-    return { date, count, level };
+    return {
+      date: formattedDate,
+      count: level,
+      level
+    };
   });
-
-  if (!earliestDateExists) {
-    activityData.unshift({
-      date: earliestDate,
-      count: 0,
-      level: 0
-    });
-  }
-
-  if (!todayExists) {
-    activityData.push({
-      date: today,
-      count: 0,
-      level: 0
-    });
-  }
-  console.log(activityData);
-  return activityData;
 }

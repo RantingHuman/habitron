@@ -1,5 +1,3 @@
-// WIP
-// TODO: Handle unlogged days
 import { Habit } from '../types/';
 import HabitActivityCalendar from './HabitActivityCalendar';
 import Card from './Card';

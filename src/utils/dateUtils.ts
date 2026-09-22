@@ -1,13 +1,13 @@
 import { format, parseISO, isSameDay, subDays, eachDayOfInterval } from 'date-fns';
 import { DATE_FORMAT_FULL, HISTORY_DAYS_TO_SHOW } from './constants';
 
-export const getLastNDates = (n: number) => {
+export const getLastNDates = (n: number, referenceDate: Date = new Date()) => {
   const MAX_N = 100;
   if(n <= 0) return [];
   if(n > MAX_N) n = MAX_N;
   return eachDayOfInterval({
-    end: subDays(new Date(), n - 1),
-    start: new Date()
+    end: subDays(referenceDate, n - 1),
+    start: referenceDate
   });
 };
 
