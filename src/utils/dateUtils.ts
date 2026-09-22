@@ -6,8 +6,8 @@ export const getLastNDates = (n: number, referenceDate: Date = new Date()) => {
   if(n <= 0) return [];
   if(n > MAX_N) n = MAX_N;
   return eachDayOfInterval({
-    end: subDays(referenceDate, n - 1),
-    start: referenceDate
+    start: subDays(referenceDate, n - 1),
+    end: referenceDate
   });
 };
 
