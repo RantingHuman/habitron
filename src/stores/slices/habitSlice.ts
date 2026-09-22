@@ -24,14 +24,11 @@ const getLog = (habits: Habit[], habitId: string, date: string): Log | undefined
   return habit.completionHistory.find((log: Log) => log.date === date);
 }
 const toggleHabitCompletion = (habit: Habit, log: Log): Habit => {
-  log.completed = !log.completed;
-  const completionHistory = habit.completionHistory || [];
-  if (!completionHistory.some((l) => l.id === log.id)) {
-    completionHistory.push(log);
-  } else {
-    completionHistory.map((l) => l.id === log.id ? log : l);
-  }
-  return { ...habit, completionHistory };
+  const nextLog = { ...log, completed: !log.completed };
+  const completionHistory = (habit.completionHistory || [])
+    .filter((existingLog) => existingLog.date !== log.date);
+
+  return { ...habit, completionHistory: [...completionHistory, nextLog] };
 }
 
 export const createHabitSlice: StateCreator<HabitSlice> = (set, get) => ({
@@ -43,7 +40,13 @@ export const createHabitSlice: StateCreator<HabitSlice> = (set, get) => ({
   updateHabit: (habit) => set((state) => ({ habits: updateHabit(state.habits, habit) })),
   getHabit: (id) => id ? getHabit(get().habits, id) : undefined,
   getLog: (habitId, date) => getLog(get().habits, habitId, date),
-  toggleHabitCompletion: (habit, log) => set((state) => ({ 
-    habits: updateHabit(state.habits, toggleHabitCompletion(habit, log)) 
-  })),
+  toggleHabitCompletion: (habit, log) => set((state) => {
+    const currentHabit = getHabit(state.habits, habit.id);
+    if (!currentHabit) return { habits: state.habits };
+
+    const currentLog = getLog(state.habits, habit.id, log.date) || log;
+    return {
+      habits: updateHabit(state.habits, toggleHabitCompletion(currentHabit, currentLog))
+    };
+  }),
 });
