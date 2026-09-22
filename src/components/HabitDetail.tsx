@@ -9,6 +9,7 @@ import Button from './buttons/Button';
 import HabitHistory from './HabitHistory';
 import useHabitronNavigation from '../hooks/useHabitronNavigation';
 import Card from './Card';
+import { getCurrentStreak } from '../utils/habitUtils';
 // import HabitCalendar from './HabitCalendar';
 
 
@@ -37,6 +38,7 @@ const HabitDetail = () => {
       <Card header={habit.name}>
       
         <div >{habit.description}</div>
+        <div>Current streak: {getCurrentStreak(habit)} days</div>
 
         <div className='flex justify-end gap-6 mt-4'>
           <Button name='edit' appearance='primary' onClick={handleEdit}>Edit</Button>

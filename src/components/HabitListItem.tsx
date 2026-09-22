@@ -3,6 +3,7 @@ import HabitToggle from './HabitToggle';
 import { NavLink } from 'react-router-dom';
 import { format } from 'date-fns';
 import { DATE_FORMAT_FULL } from '../utils/constants';
+import { getCurrentStreak } from '../utils/habitUtils';
 
 interface HabitListItemProps {
   habit: Habit;
@@ -16,6 +17,7 @@ const HabitListItem = ({ habit, dates }: HabitListItemProps) => {
       <div className='col-span-3 truncate'>
         <NavLink to={`/view-habit/${habit.id}`}>
           {habit.name}
+          <span className='block text-xs'>Streak: {getCurrentStreak(habit)}</span>
         </NavLink>
       </div>
       {

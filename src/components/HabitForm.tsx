@@ -4,8 +4,9 @@ import { useParams } from 'react-router-dom';
 import FormInput from './form-elements/FormInput';
 import Button from './buttons/Button';
 import { createHabit } from '../utils/habitUtils';
-import { VALIDATION_MESSAGES } from '../utils/constants';
+import { DAILY_FREQUENCY, VALIDATION_MESSAGES, WEEKDAY_FREQUENCIES } from '../utils/constants';
 import useHabitronNavigation from '../hooks/useHabitronNavigation';
+import ValidationError from './dialogs/ValidationError';
 
 const HabitForm = () => {
   const { id } = useParams();
@@ -14,9 +15,26 @@ const HabitForm = () => {
   const habit = getHabit(id);
   const [name, setName] = useState(habit?.name || '');
   const [description, setDescription] = useState(habit?.description || '');
-  // const [frequency, setFrequency] = useState(habit?.frequency || []);
+  const [frequency, setFrequency] = useState<string[]>(
+    habit?.frequency?.length ? habit.frequency : [DAILY_FREQUENCY]
+  );
 
   const [nameErrorMessage, setNameErrorMessage] = useState('')
+  const [frequencyErrorMessage, setFrequencyErrorMessage] = useState('')
+
+  const handleFrequencyChange = (value: string, checked: boolean) => {
+    setFrequency((currentFrequency) => {
+      if (value === DAILY_FREQUENCY) {
+        return checked ? [DAILY_FREQUENCY] : [];
+      }
+
+      const weekdayFrequency = currentFrequency.filter((item) => item !== DAILY_FREQUENCY);
+      if (checked && !weekdayFrequency.includes(value)) {
+        return [...weekdayFrequency, value];
+      }
+      return weekdayFrequency.filter((item) => item !== value);
+    });
+  };
 
   const handleCancel = (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
     e.preventDefault();
@@ -29,21 +47,22 @@ const HabitForm = () => {
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if(!validateForm()) {
-      setNameErrorMessage(VALIDATION_MESSAGES.HABIT_NAME_REQUIRED);
-      return;
-    }
+    if(!validateForm()) return;
     if (habit) {
-      updateHabit({ ...habit, name, description });
+      updateHabit({ ...habit, name, description, frequency });
       navigateToViewHabit(habit.id);
     } else {
-      addHabit(createHabit(name, description));
+      addHabit(createHabit(name, description, frequency));
       navigateToHome();
     }
   };
 
   const validateForm = () => {
-    return name.trim() !== '';
+    const hasName = name.trim() !== '';
+    const hasFrequency = frequency.length > 0;
+    setNameErrorMessage(hasName ? '' : VALIDATION_MESSAGES.HABIT_NAME_REQUIRED);
+    setFrequencyErrorMessage(hasFrequency ? '' : 'Select at least one day.');
+    return hasName && hasFrequency;
   }
 
   return (
@@ -61,12 +80,33 @@ const HabitForm = () => {
         value={description}
         onChange={(e) => setDescription(e.target.value)}
       />
-      {/* <FormInput
-        label="Frequency"
-        name="habit-frequency"
-        value={frequency.join(',')}
-        onChange={(e) => setFrequency(e.target.value.split(','))}
-      /> */}
+      <fieldset>
+        <legend className='font-medium'>Frequency</legend>
+        <label className='flex items-center gap-2 mt-1'>
+          <input
+            name='habit-frequency-daily'
+            type='checkbox'
+            checked={frequency.includes(DAILY_FREQUENCY)}
+            onChange={(e) => handleFrequencyChange(DAILY_FREQUENCY, e.target.checked)}
+          />
+          Every day
+        </label>
+        <div className='grid grid-cols-4 gap-2 mt-2'>
+          {WEEKDAY_FREQUENCIES.map(({ value, label }) => (
+            <label key={value} className='flex items-center gap-1'>
+              <input
+                name={`habit-frequency-${value}`}
+                type='checkbox'
+                checked={frequency.includes(value)}
+                disabled={frequency.includes(DAILY_FREQUENCY)}
+                onChange={(e) => handleFrequencyChange(value, e.target.checked)}
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+        {frequencyErrorMessage && <ValidationError message={frequencyErrorMessage} />}
+      </fieldset>
       <div className='flex justify-end gap-6 mt-4'>
         <Button name='cancel' appearance='secondary' onClick={handleCancel}>Cancel</Button>
         <Button name='submit' appearance='primary' type="submit">{habit ? 'Update' : 'Add'} Habit</Button>
