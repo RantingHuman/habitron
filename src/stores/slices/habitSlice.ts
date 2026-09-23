@@ -7,6 +7,7 @@ export interface HabitSlice {
   addHabit: (habit: Habit) => void;
   removeHabit: (id: string) => void;
   updateHabit: (habit: Habit) => void;
+  replaceHabits: (habits: Habit[]) => void;
   getHabit: (id?: string) => Habit | undefined;
   getLog: (habitId: string, date: string) => Log | undefined;
   toggleHabitCompletion: (habit: Habit, log: Log) => void;
@@ -38,6 +39,12 @@ export const createHabitSlice: StateCreator<HabitSlice> = (set, get) => ({
   addHabit: (habit: Habit) => set((state) => ({ habits: addHabit(state.habits, habit) })),
   removeHabit: (id) => set((state) => ({ habits: removeHabit(state.habits, id) })),
   updateHabit: (habit) => set((state) => ({ habits: updateHabit(state.habits, habit) })),
+  replaceHabits: (habits) => set(() => ({
+    habits: habits.map((habit) => ({
+      ...habit,
+      completionHistory: [...habit.completionHistory]
+    }))
+  })),
   getHabit: (id) => id ? getHabit(get().habits, id) : undefined,
   getLog: (habitId, date) => getLog(get().habits, habitId, date),
   toggleHabitCompletion: (habit, log) => set((state) => {

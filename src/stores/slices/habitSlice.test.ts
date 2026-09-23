@@ -41,4 +41,13 @@ describe('habit completion updates', () => {
       completed: true
     });
   });
+
+  it('replaces habits with cloned completion histories', () => {
+    const habit = createHabit('Write', '');
+    store.getState().replaceHabits([habit]);
+
+    expect(store.getState().habits).toHaveLength(1);
+    expect(store.getState().habits[0].completionHistory)
+      .not.toBe(habit.completionHistory);
+  });
 });
