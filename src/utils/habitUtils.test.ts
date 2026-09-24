@@ -4,6 +4,7 @@ import { DAILY_FREQUENCY, HISTORY_DAYS_TO_SHOW } from './constants';
 import {
   getActivityCalendarData,
   getCurrentStreak,
+  getHabitSchedule,
   isHabitScheduledForDate
 } from './habitUtils';
 import { getToday } from './dateUtils';
@@ -39,6 +40,26 @@ describe('habit scheduling', () => {
 
     expect(isHabitScheduledForDate(habit, '2026-09-21')).toBe(true);
     expect(isHabitScheduledForDate(habit, '2026-09-22')).toBe(false);
+  });
+
+  it('supports interval schedules anchored at the habit start date', () => {
+    const habit = makeHabit({
+      schedule: { type: 'interval', intervalDays: 2 }
+    });
+
+    expect(isHabitScheduledForDate(habit, '2026-09-19')).toBe(true);
+    expect(isHabitScheduledForDate(habit, '2026-09-20')).toBe(false);
+    expect(isHabitScheduledForDate(habit, '2026-09-21')).toBe(true);
+    expect(isHabitScheduledForDate(habit, '2026-09-18')).toBe(false);
+  });
+
+  it('resolves legacy weekday frequencies into the schedule model', () => {
+    const habit = makeHabit({ frequency: ['monday', 'wednesday'] });
+
+    expect(getHabitSchedule(habit)).toEqual({
+      type: 'weekdays',
+      days: ['monday', 'wednesday']
+    });
   });
 });
 

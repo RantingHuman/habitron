@@ -3,10 +3,11 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import FormInput from './form-elements/FormInput';
 import Button from './buttons/Button';
-import { createHabit } from '../utils/habitUtils';
-import { DAILY_FREQUENCY, VALIDATION_MESSAGES, WEEKDAY_FREQUENCIES } from '../utils/constants';
+import { createHabit, getFrequencyForSchedule, getHabitSchedule } from '../utils/habitUtils';
+import { VALIDATION_MESSAGES, WEEKDAY_FREQUENCIES } from '../utils/constants';
 import useHabitronNavigation from '../hooks/useHabitronNavigation';
 import ValidationError from './dialogs/ValidationError';
+import { HabitSchedule, Weekday } from '../types/';
 
 const HabitForm = () => {
   const { id } = useParams();
@@ -15,24 +16,35 @@ const HabitForm = () => {
   const habit = getHabit(id);
   const [name, setName] = useState(habit?.name || '');
   const [description, setDescription] = useState(habit?.description || '');
-  const [frequency, setFrequency] = useState<string[]>(
-    habit?.frequency?.length ? habit.frequency : [DAILY_FREQUENCY]
+  const [schedule, setSchedule] = useState<HabitSchedule>(() =>
+    habit ? getHabitSchedule(habit) : { type: 'daily' }
   );
 
   const [nameErrorMessage, setNameErrorMessage] = useState('')
-  const [frequencyErrorMessage, setFrequencyErrorMessage] = useState('')
+  const [scheduleErrorMessage, setScheduleErrorMessage] = useState('')
 
-  const handleFrequencyChange = (value: string, checked: boolean) => {
-    setFrequency((currentFrequency) => {
-      if (value === DAILY_FREQUENCY) {
-        return checked ? [DAILY_FREQUENCY] : [];
-      }
+  const handleScheduleTypeChange = (type: HabitSchedule['type']) => {
+    if (type === 'daily') {
+      setSchedule({ type });
+    } else if (type === 'weekdays') {
+      setSchedule((currentSchedule) => currentSchedule.type === type
+        ? currentSchedule
+        : { type, days: [] });
+    } else {
+      setSchedule((currentSchedule) => currentSchedule.type === type
+        ? currentSchedule
+        : { type, intervalDays: 2 });
+    }
+  };
 
-      const weekdayFrequency = currentFrequency.filter((item) => item !== DAILY_FREQUENCY);
-      if (checked && !weekdayFrequency.includes(value)) {
-        return [...weekdayFrequency, value];
-      }
-      return weekdayFrequency.filter((item) => item !== value);
+  const handleWeekdayChange = (weekday: Weekday, checked: boolean) => {
+    setSchedule((currentSchedule) => {
+      if (currentSchedule.type !== 'weekdays') return currentSchedule;
+
+      const days = checked
+        ? [...currentSchedule.days, weekday]
+        : currentSchedule.days.filter((day) => day !== weekday);
+      return { ...currentSchedule, days };
     });
   };
 
@@ -49,20 +61,28 @@ const HabitForm = () => {
     e.preventDefault();
     if(!validateForm()) return;
     if (habit) {
-      updateHabit({ ...habit, name, description, frequency });
+      updateHabit({
+        ...habit,
+        name,
+        description,
+        frequency: getFrequencyForSchedule(schedule),
+        schedule
+      });
       navigateToViewHabit(habit.id);
     } else {
-      addHabit(createHabit(name, description, frequency));
+      addHabit(createHabit(name, description, schedule));
       navigateToHome();
     }
   };
 
   const validateForm = () => {
     const hasName = name.trim() !== '';
-    const hasFrequency = frequency.length > 0;
+    const hasValidSchedule = schedule.type === 'daily'
+      || (schedule.type === 'weekdays' && schedule.days.length > 0)
+      || (schedule.type === 'interval' && Number.isInteger(schedule.intervalDays) && schedule.intervalDays >= 2);
     setNameErrorMessage(hasName ? '' : VALIDATION_MESSAGES.HABIT_NAME_REQUIRED);
-    setFrequencyErrorMessage(hasFrequency ? '' : 'Select at least one day.');
-    return hasName && hasFrequency;
+    setScheduleErrorMessage(hasValidSchedule ? '' : 'Choose valid schedule settings.');
+    return hasName && hasValidSchedule;
   }
 
   return (
@@ -81,31 +101,70 @@ const HabitForm = () => {
         onChange={(e) => setDescription(e.target.value)}
       />
       <fieldset>
-        <legend className='font-medium'>Frequency</legend>
-        <label className='flex items-center gap-2 mt-1'>
-          <input
-            name='habit-frequency-daily'
-            type='checkbox'
-            checked={frequency.includes(DAILY_FREQUENCY)}
-            onChange={(e) => handleFrequencyChange(DAILY_FREQUENCY, e.target.checked)}
-          />
-          Every day
-        </label>
-        <div className='grid grid-cols-4 gap-2 mt-2'>
-          {WEEKDAY_FREQUENCIES.map(({ value, label }) => (
-            <label key={value} className='flex items-center gap-1'>
-              <input
-                name={`habit-frequency-${value}`}
-                type='checkbox'
-                checked={frequency.includes(value)}
-                disabled={frequency.includes(DAILY_FREQUENCY)}
-                onChange={(e) => handleFrequencyChange(value, e.target.checked)}
-              />
-              {label}
-            </label>
-          ))}
+        <legend className='font-medium'>Schedule</legend>
+        <div className='grid gap-2 mt-1'>
+          <label className='flex items-center gap-2'>
+            <input
+              name='habit-schedule-type'
+              type='radio'
+              value='daily'
+              checked={schedule.type === 'daily'}
+              onChange={() => handleScheduleTypeChange('daily')}
+            />
+            Every day
+          </label>
+          <label className='flex items-center gap-2'>
+            <input
+              name='habit-schedule-type'
+              type='radio'
+              value='weekdays'
+              checked={schedule.type === 'weekdays'}
+              onChange={() => handleScheduleTypeChange('weekdays')}
+            />
+            Specific weekdays
+          </label>
+          <label className='flex items-center gap-2'>
+            <input
+              name='habit-schedule-type'
+              type='radio'
+              value='interval'
+              checked={schedule.type === 'interval'}
+              onChange={() => handleScheduleTypeChange('interval')}
+            />
+            Every N days
+          </label>
         </div>
-        {frequencyErrorMessage && <ValidationError message={frequencyErrorMessage} />}
+        {schedule.type === 'weekdays' && (
+          <div className='grid grid-cols-4 gap-2 mt-2'>
+            {WEEKDAY_FREQUENCIES.map(({ value, label }) => (
+              <label key={value} className='flex items-center gap-1'>
+                <input
+                  name={`habit-schedule-${value}`}
+                  type='checkbox'
+                  checked={schedule.days.includes(value)}
+                  onChange={(e) => handleWeekdayChange(value, e.target.checked)}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+        )}
+        {schedule.type === 'interval' && (
+          <label className='flex items-center gap-2 mt-2'>
+            Every
+            <input
+              name='habit-schedule-interval'
+              type='number'
+              min='2'
+              max='365'
+              value={schedule.intervalDays}
+              onChange={(e) => setSchedule({ type: 'interval', intervalDays: Number(e.target.value) })}
+              className='w-20 rounded-md'
+            />
+            days
+          </label>
+        )}
+        {scheduleErrorMessage && <ValidationError message={scheduleErrorMessage} />}
       </fieldset>
       <div className='flex justify-end gap-6 mt-4'>
         <Button name='cancel' appearance='secondary' onClick={handleCancel}>Cancel</Button>

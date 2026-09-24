@@ -1,15 +1,39 @@
-import { format, isBefore, parseISO, subDays } from 'date-fns';
-import { Habit, Log } from '../types/';
+import { differenceInCalendarDays, format, isBefore, parseISO, subDays } from 'date-fns';
+import { Habit, HabitSchedule, Log, Weekday } from '../types/';
 import {v4 as uuidv4} from 'uuid';
-import { DAILY_FREQUENCY, DATE_FORMAT_FULL, HISTORY_DAYS_TO_SHOW } from './constants';
+import { DAILY_FREQUENCY, DATE_FORMAT_FULL, HISTORY_DAYS_TO_SHOW, WEEKDAY_FREQUENCIES } from './constants';
 import { getToday, getCurrentTimestamp, getLastNDates } from './dateUtils';
 
-export const createHabit = (name: string, description: string, frequency: string[] = [DAILY_FREQUENCY]) => {
+const isWeekday = (value: string): value is Weekday =>
+  WEEKDAY_FREQUENCIES.some(({ value: weekday }) => weekday === value);
+
+export const getHabitSchedule = (habit: Habit): HabitSchedule => {
+  if (habit.schedule) return habit.schedule;
+
+  const frequency = habit.frequency?.length ? habit.frequency : [DAILY_FREQUENCY];
+  if (frequency.includes(DAILY_FREQUENCY)) return { type: 'daily' };
+
+  const days = frequency.filter(isWeekday);
+  return days.length > 0 ? { type: 'weekdays', days } : { type: 'daily' };
+};
+
+export const getFrequencyForSchedule = (schedule: HabitSchedule): string[] => {
+  if (schedule.type === 'daily') return [DAILY_FREQUENCY];
+  if (schedule.type === 'weekdays') return [...schedule.days];
+  return [];
+};
+
+export const createHabit = (
+  name: string,
+  description: string,
+  schedule: HabitSchedule = { type: 'daily' }
+) => {
   const newHabit: Habit = {
     id: uuidv4(),
     name,
     description,
-    frequency,
+    frequency: getFrequencyForSchedule(schedule),
+    schedule,
     streak: 0,
     startDate: getToday(),
     completionHistory: []
@@ -31,11 +55,19 @@ export const createLog = (date?: string, type: 'manual' | 'computed' = 'manual',
 }
 
 export const isHabitScheduledForDate = (habit: Habit, date: string) => {
-  const frequency = habit.frequency?.length ? habit.frequency : [DAILY_FREQUENCY];
-  if (frequency.includes(DAILY_FREQUENCY)) return true;
+  const currentDate = parseISO(date);
+  const startDate = parseISO(habit.startDate);
+  if (isBefore(currentDate, startDate)) return false;
 
-  const weekday = format(parseISO(date), 'EEEE').toLowerCase();
-  return frequency.includes(weekday);
+  const schedule = getHabitSchedule(habit);
+  if (schedule.type === 'daily') return true;
+
+  if (schedule.type === 'weekdays') {
+    const weekday = format(currentDate, 'EEEE').toLowerCase();
+    return schedule.days.includes(weekday as Weekday);
+  }
+
+  return differenceInCalendarDays(currentDate, startDate) % schedule.intervalDays === 0;
 }
 
 export const getCurrentStreak = (habit: Habit, referenceDate: string = getToday()) => {

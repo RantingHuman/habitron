@@ -1,4 +1,6 @@
 export {
   Habit,
-  Log
+  HabitSchedule,
+  Log,
+  Weekday
 } from './configs/';

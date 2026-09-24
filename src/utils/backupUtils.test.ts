@@ -17,4 +17,11 @@ describe('Habitron backups', () => {
     expect(() => parseBackup(JSON.stringify({ version: 1, habits: [] })))
       .toThrow('not a valid Habitron backup');
   });
+
+  it('rejects invalid interval schedules', () => {
+    const habit = createHabit('Exercise', '', { type: 'interval', intervalDays: 1 });
+
+    expect(() => parseBackup(serializeBackup([habit])))
+      .toThrow('not a valid Habitron backup');
+  });
 });

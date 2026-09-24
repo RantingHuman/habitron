@@ -1,4 +1,5 @@
-import { Habit, Log } from '../types/';
+import { Habit, HabitSchedule, Log, Weekday } from '../types/';
+import { WEEKDAY_FREQUENCIES } from './constants';
 
 const BACKUP_VERSION = 1;
 
@@ -21,6 +22,23 @@ const isLog = (value: unknown): value is Log => {
     && typeof value.completed === 'boolean';
 };
 
+const isWeekday = (value: string): value is Weekday =>
+  WEEKDAY_FREQUENCIES.some(({ value: weekday }) => weekday === value);
+
+const isSchedule = (value: unknown): value is HabitSchedule => {
+  if (!isRecord(value) || typeof value.type !== 'string') return false;
+  if (value.type === 'daily') return true;
+  if (value.type === 'weekdays') {
+    return Array.isArray(value.days)
+      && value.days.length > 0
+      && value.days.every((day) => typeof day === 'string' && isWeekday(day));
+  }
+  return value.type === 'interval'
+    && typeof value.intervalDays === 'number'
+    && Number.isInteger(value.intervalDays)
+    && value.intervalDays >= 2;
+};
+
 const isHabit = (value: unknown): value is Habit => {
   if (!isRecord(value)) return false;
 
@@ -29,6 +47,7 @@ const isHabit = (value: unknown): value is Habit => {
     && (value.description === undefined || typeof value.description === 'string')
     && Array.isArray(value.frequency)
     && value.frequency.every((item) => typeof item === 'string')
+    && (value.schedule === undefined || isSchedule(value.schedule))
     && typeof value.streak === 'number'
     && typeof value.startDate === 'string'
     && Array.isArray(value.completionHistory)
