@@ -4,18 +4,22 @@ import { create } from 'zustand';
 import { createHabitSlice, type HabitSlice } from "./slices/habitSlice";
 import { createSystemSlice, type SystemSlice } from "./slices/systemSlice";
 
-type PersistenceStatus = 'hydrating' | 'ready' | 'error';
-
 interface PersistenceState {
-  status: PersistenceStatus;
+  hasHydrated: boolean;
   error: string | null;
-  setStatus: (status: PersistenceStatus, error?: string | null) => void;
+  beginHydration: () => void;
+  completeHydration: () => void;
+  setError: (error: string) => void;
+  clearError: () => void;
 }
 
 export const usePersistenceStore = create<PersistenceState>((set) => ({
-  status: 'hydrating',
+  hasHydrated: false,
   error: null,
-  setStatus: (status, error = null) => set({ status, error })
+  beginHydration: () => set({ hasHydrated: false }),
+  completeHydration: () => set({ hasHydrated: true, error: null }),
+  setError: (error) => set({ error }),
+  clearError: () => set({ error: null })
 }));
 
 const habitronTauriStore = new Store("./habitron.bin");
@@ -68,8 +72,8 @@ type HabitronState = HabitSlice & SystemSlice;
 type PersistedHabitronState = Pick<HabitronState, 'habits' | 'darkMode'>;
 
 const persistenceCallbacks: PersistenceCallbacks = {
-  onError: (error) => usePersistenceStore.getState().setStatus('error', getErrorMessage(error)),
-  onSuccess: () => usePersistenceStore.getState().setStatus('ready')
+  onError: (error) => usePersistenceStore.getState().setError(getErrorMessage(error)),
+  onSuccess: () => usePersistenceStore.getState().clearError()
 };
 
 export const useHabitronStore = create<HabitronState>()(
@@ -93,12 +97,15 @@ export const useHabitronStore = create<HabitronState>()(
           darkMode: state.darkMode ?? false
         };
       },
-      onRehydrateStorage: () => (_state, error) => {
-        if (error) {
-          usePersistenceStore.getState().setStatus('error', getErrorMessage(error));
-        } else {
-          usePersistenceStore.getState().setStatus('ready');
-        }
+      onRehydrateStorage: () => {
+        usePersistenceStore.getState().beginHydration();
+        return (_state, error) => {
+          if (error) {
+            usePersistenceStore.getState().setError(getErrorMessage(error));
+          } else {
+            usePersistenceStore.getState().completeHydration();
+          }
+        };
       }
     })
 );
