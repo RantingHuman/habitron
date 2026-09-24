@@ -1,5 +1,5 @@
 import { differenceInCalendarDays, format, isBefore, parseISO, subDays } from 'date-fns';
-import { Habit, HabitSchedule, Log, Weekday } from '../types/';
+import { Habit, HabitSchedule, Log, LogStatus, Weekday } from '../types/';
 import {v4 as uuidv4} from 'uuid';
 import { DAILY_FREQUENCY, DATE_FORMAT_FULL, HISTORY_DAYS_TO_SHOW, WEEKDAY_FREQUENCIES } from './constants';
 import { getToday, getCurrentTimestamp, getLastNDates } from './dateUtils';
@@ -48,13 +48,22 @@ export const createLog = (date?: string, type: 'manual' | 'computed' = 'manual',
     timestamp: getCurrentTimestamp(),
     date: date || getToday(),
     type,
-    completed
+    completed,
+    status: completed ? 'completed' : 'missed'
   };
 
   return newLog;
 }
 
+export const getLogStatus = (log?: Log): LogStatus | 'unlogged' => {
+  if (!log) return 'unlogged';
+  if (log.status) return log.status;
+  return log.completed ? 'completed' : 'missed';
+};
+
 export const isHabitScheduledForDate = (habit: Habit, date: string) => {
+  if (habit.status === 'paused') return false;
+
   const currentDate = parseISO(date);
   const startDate = parseISO(habit.startDate);
   if (isBefore(currentDate, startDate)) return false;
@@ -73,7 +82,7 @@ export const isHabitScheduledForDate = (habit: Habit, date: string) => {
 export const getCurrentStreak = (habit: Habit, referenceDate: string = getToday()) => {
   const completedDates = new Set(
     habit.completionHistory
-      .filter((log) => log.completed)
+      .filter((log) => getLogStatus(log) === 'completed')
       .map((log) => log.date)
   );
   const startDate = parseISO(habit.startDate);
@@ -107,7 +116,7 @@ export const getActivityCalendarData = (habit: Habit) => {
   return getLastNDates(HISTORY_DAYS_TO_SHOW + 1).map((date) => {
     const formattedDate = format(date, DATE_FORMAT_FULL);
     const log = logsByDate.get(formattedDate);
-    const level = log?.completed ? 1 : 0;
+    const level = getLogStatus(log) === 'completed' ? 1 : 0;
 
     return {
       date: formattedDate,

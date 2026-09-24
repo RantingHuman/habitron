@@ -24,4 +24,19 @@ describe('Habitron backups', () => {
     expect(() => parseBackup(serializeBackup([habit])))
       .toThrow('not a valid Habitron backup');
   });
+
+  it('rejects unknown log and habit statuses', () => {
+    const habit = createHabit('Exercise', '');
+    const backup = JSON.parse(serializeBackup([habit])) as {
+      habits: Array<{ status?: string; completionHistory: Array<{ status?: string }> }>;
+    };
+    backup.habits[0].status = 'archived';
+    backup.habits[0].completionHistory.push({ status: 'unknown' });
+
+    expect(() => parseBackup(JSON.stringify({
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      habits: backup.habits
+    }))).toThrow('not a valid Habitron backup');
+  });
 });

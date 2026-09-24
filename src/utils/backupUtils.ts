@@ -19,7 +19,11 @@ const isLog = (value: unknown): value is Log => {
     && typeof value.timestamp === 'number'
     && typeof value.date === 'string'
     && (value.type === 'manual' || value.type === 'computed')
-    && typeof value.completed === 'boolean';
+    && typeof value.completed === 'boolean'
+    && (value.status === undefined
+      || value.status === 'completed'
+      || value.status === 'skipped'
+      || value.status === 'missed');
 };
 
 const isWeekday = (value: string): value is Weekday =>
@@ -48,6 +52,7 @@ const isHabit = (value: unknown): value is Habit => {
     && Array.isArray(value.frequency)
     && value.frequency.every((item) => typeof item === 'string')
     && (value.schedule === undefined || isSchedule(value.schedule))
+    && (value.status === undefined || value.status === 'active' || value.status === 'paused')
     && typeof value.streak === 'number'
     && typeof value.startDate === 'string'
     && Array.isArray(value.completionHistory)

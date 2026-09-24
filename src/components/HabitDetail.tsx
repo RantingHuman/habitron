@@ -16,7 +16,7 @@ import { getCurrentStreak } from '../utils/habitUtils';
 const HabitDetail = () => {
   const { id } = useParams();
   const { navigateToHome, navigateToEditHabit } = useHabitronNavigation();
-  const { getHabit, removeHabit } = useHabitronStore();
+  const { getHabit, removeHabit, updateHabit } = useHabitronStore();
   const [showDialog, setShowDialog] = useState(false);
 
   const habit = getHabit(id);
@@ -31,6 +31,12 @@ const HabitDetail = () => {
     if(habit) navigateToEditHabit(habit.id);
   }
 
+  const handleTogglePause = () => {
+    if (habit) {
+      updateHabit({ ...habit, status: habit.status === 'paused' ? 'active' : 'paused' });
+    }
+  }
+
 
   return (
     habit ? (
@@ -38,9 +44,13 @@ const HabitDetail = () => {
       <Card header={habit.name}>
       
         <div >{habit.description}</div>
+        <div>Status: {habit.status === 'paused' ? 'Paused' : 'Active'}</div>
         <div>Current streak: {getCurrentStreak(habit)} days</div>
 
         <div className='flex justify-end gap-6 mt-4'>
+          <Button name='toggle-pause' appearance='secondary' onClick={handleTogglePause}>
+            {habit.status === 'paused' ? 'Resume' : 'Pause'}
+          </Button>
           <Button name='edit' appearance='primary' onClick={handleEdit}>Edit</Button>
           <Button name='delete' appearance='danger' onClick={() => setShowDialog(true)}>Delete</Button>
         </div>

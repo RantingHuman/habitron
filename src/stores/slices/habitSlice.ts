@@ -1,6 +1,7 @@
 import { StateCreator } from 'zustand';
-import { Habit, Log } from '../../types/';
+import { Habit, Log, LogStatus } from '../../types/';
 import testHabits from '../../data/testHabits';
+import { createLog, getLogStatus } from '../../utils/habitUtils';
 
 export interface HabitSlice {
   habits: Habit[];
@@ -8,6 +9,7 @@ export interface HabitSlice {
   removeHabit: (id: string) => void;
   updateHabit: (habit: Habit) => void;
   replaceHabits: (habits: Habit[]) => void;
+  setHabitLog: (habitId: string, date: string, status: LogStatus | null) => void;
   getHabit: (id?: string) => Habit | undefined;
   getLog: (habitId: string, date: string) => Log | undefined;
   toggleHabitCompletion: (habit: Habit, log: Log) => void;
@@ -24,12 +26,22 @@ const getLog = (habits: Habit[], habitId: string, date: string): Log | undefined
   if (!habit) return;
   return habit.completionHistory.find((log: Log) => log.date === date);
 }
-const toggleHabitCompletion = (habit: Habit, log: Log): Habit => {
-  const nextLog = { ...log, completed: !log.completed };
+const setHabitLogOnHabit = (habit: Habit, date: string, status: LogStatus | null): Habit => {
   const completionHistory = (habit.completionHistory || [])
-    .filter((existingLog) => existingLog.date !== log.date);
+    .filter((existingLog) => existingLog.date !== date);
+
+  if (!status) return { ...habit, completionHistory };
+
+  const existingLog = habit.completionHistory.find((log) => log.date === date);
+  const nextLog = existingLog
+    ? { ...existingLog, completed: status === 'completed', status }
+    : { ...createLog(date, 'manual', status === 'completed'), status };
 
   return { ...habit, completionHistory: [...completionHistory, nextLog] };
+}
+const toggleHabitCompletion = (habit: Habit, log: Log): Habit => {
+  const nextStatus = getLogStatus(log) === 'completed' ? null : 'completed';
+  return setHabitLogOnHabit(habit, log.date, nextStatus);
 }
 
 export const createHabitSlice: StateCreator<HabitSlice> = (set, get) => ({
@@ -44,6 +56,11 @@ export const createHabitSlice: StateCreator<HabitSlice> = (set, get) => ({
       ...habit,
       completionHistory: [...habit.completionHistory]
     }))
+  })),
+  setHabitLog: (habitId, date, status) => set((state) => ({
+    habits: state.habits.map((habit) => habit.id === habitId
+      ? setHabitLogOnHabit(habit, date, status)
+      : habit)
   })),
   getHabit: (id) => id ? getHabit(get().habits, id) : undefined,
   getLog: (habitId, date) => getLog(get().habits, habitId, date),

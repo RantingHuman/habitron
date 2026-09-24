@@ -1,2 +1,2 @@
-export type { Habit, HabitSchedule, Weekday } from './habit';
-export { Log } from './log';
+export type { Habit, HabitSchedule, HabitStatus, Weekday } from './habit';
+export type { Log, LogStatus } from './log';

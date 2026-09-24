@@ -21,8 +21,7 @@ describe('habit completion updates', () => {
     );
 
     const updatedHabit = store.getState().habits[0];
-    expect(updatedHabit.completionHistory).toHaveLength(1);
-    expect(updatedHabit.completionHistory[0].completed).toBe(false);
+    expect(updatedHabit.completionHistory).toHaveLength(0);
     expect(updatedHabit.completionHistory).not.toBe(storedHabit.completionHistory);
     expect(storedHabit.completionHistory[0].completed).toBe(true);
   });
@@ -40,6 +39,24 @@ describe('habit completion updates', () => {
       date: '2026-09-22',
       completed: true
     });
+  });
+
+  it('sets and clears explicit skipped and missed states', () => {
+    const habit = createHabit('Meditate', '');
+    store.setState({ habits: [habit] });
+
+    store.getState().setHabitLog(habit.id, '2026-09-22', 'skipped');
+    expect(store.getState().habits[0].completionHistory[0]).toMatchObject({
+      date: '2026-09-22',
+      completed: false,
+      status: 'skipped'
+    });
+
+    store.getState().setHabitLog(habit.id, '2026-09-22', 'missed');
+    expect(store.getState().habits[0].completionHistory[0].status).toBe('missed');
+
+    store.getState().setHabitLog(habit.id, '2026-09-22', null);
+    expect(store.getState().habits[0].completionHistory).toHaveLength(0);
   });
 
   it('replaces habits with cloned completion histories', () => {
