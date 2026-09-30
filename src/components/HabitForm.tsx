@@ -8,6 +8,7 @@ import { VALIDATION_MESSAGES, WEEKDAY_FREQUENCIES } from '../utils/constants';
 import useHabitronNavigation from '../hooks/useHabitronNavigation';
 import ValidationError from './dialogs/ValidationError';
 import { HabitSchedule, Weekday } from '../types/';
+import { isValidReminderTime } from '../utils/reminderUtils';
 
 const HabitForm = () => {
   const { id } = useParams();
@@ -19,9 +20,12 @@ const HabitForm = () => {
   const [schedule, setSchedule] = useState<HabitSchedule>(() =>
     habit ? getHabitSchedule(habit) : { type: 'daily' }
   );
+  const [reminderEnabled, setReminderEnabled] = useState(habit?.reminder?.enabled ?? false);
+  const [reminderTime, setReminderTime] = useState(habit?.reminder?.time ?? '09:00');
 
   const [nameErrorMessage, setNameErrorMessage] = useState('')
   const [scheduleErrorMessage, setScheduleErrorMessage] = useState('')
+  const [reminderErrorMessage, setReminderErrorMessage] = useState('')
 
   const handleScheduleTypeChange = (type: HabitSchedule['type']) => {
     if (type === 'daily') {
@@ -66,11 +70,17 @@ const HabitForm = () => {
         name,
         description,
         frequency: getFrequencyForSchedule(schedule),
-        schedule
+        schedule,
+        reminder: reminderEnabled ? { enabled: true, time: reminderTime } : undefined
       });
       navigateToViewHabit(habit.id);
     } else {
-      addHabit(createHabit(name, description, schedule));
+      addHabit(createHabit(
+        name,
+        description,
+        schedule,
+        reminderEnabled ? { enabled: true, time: reminderTime } : undefined
+      ));
       navigateToHome();
     }
   };
@@ -80,9 +90,11 @@ const HabitForm = () => {
     const hasValidSchedule = schedule.type === 'daily'
       || (schedule.type === 'weekdays' && schedule.days.length > 0)
       || (schedule.type === 'interval' && Number.isInteger(schedule.intervalDays) && schedule.intervalDays >= 2);
+    const hasValidReminder = !reminderEnabled || isValidReminderTime(reminderTime);
     setNameErrorMessage(hasName ? '' : VALIDATION_MESSAGES.HABIT_NAME_REQUIRED);
     setScheduleErrorMessage(hasValidSchedule ? '' : 'Choose valid schedule settings.');
-    return hasName && hasValidSchedule;
+    setReminderErrorMessage(hasValidReminder ? '' : 'Choose a valid reminder time.');
+    return hasName && hasValidSchedule && hasValidReminder;
   }
 
   return (
@@ -165,6 +177,31 @@ const HabitForm = () => {
           </label>
         )}
         {scheduleErrorMessage && <ValidationError message={scheduleErrorMessage} />}
+      </fieldset>
+      <fieldset>
+        <legend className='font-medium'>Reminder</legend>
+        <label className='flex items-center gap-2 mt-1'>
+          <input
+            name='habit-reminder-enabled'
+            type='checkbox'
+            checked={reminderEnabled}
+            onChange={(e) => setReminderEnabled(e.target.checked)}
+          />
+          Remind me when this habit is due
+        </label>
+        {reminderEnabled && (
+          <label className='flex items-center gap-2 mt-2'>
+            Time
+            <input
+              name='habit-reminder-time'
+              type='time'
+              value={reminderTime}
+              onChange={(e) => setReminderTime(e.target.value)}
+              className='rounded-md'
+            />
+          </label>
+        )}
+        {reminderErrorMessage && <ValidationError message={reminderErrorMessage} />}
       </fieldset>
       <div className='flex justify-end gap-6 mt-4'>
         <Button name='cancel' appearance='secondary' onClick={handleCancel}>Cancel</Button>

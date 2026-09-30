@@ -4,9 +4,11 @@ import ThemeToggle from './components/ThemeToggle';
 import DataBackup from './components/DataBackup';
 import Button from './components/buttons/Button';
 import { useHabitronStore, usePersistenceStore } from './stores';
+import useReminderNotifications from './hooks/useReminderNotifications';
 
 const Layout = () => {
   const { hasHydrated, error, clearError } = usePersistenceStore();
+  useReminderNotifications();
 
   const handleRetry = () => {
     clearError();

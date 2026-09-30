@@ -1,5 +1,6 @@
 export {
   Habit,
+  HabitReminder,
   HabitSchedule,
   HabitStatus,
   Log,

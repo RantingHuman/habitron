@@ -43,6 +43,13 @@ const isSchedule = (value: unknown): value is HabitSchedule => {
     && value.intervalDays >= 2;
 };
 
+const isReminder = (value: unknown): boolean => {
+  if (!isRecord(value)) return false;
+  return value.enabled === true
+    && typeof value.time === 'string'
+    && /^([01]\d|2[0-3]):[0-5]\d$/.test(value.time);
+};
+
 const isHabit = (value: unknown): value is Habit => {
   if (!isRecord(value)) return false;
 
@@ -53,6 +60,7 @@ const isHabit = (value: unknown): value is Habit => {
     && value.frequency.every((item) => typeof item === 'string')
     && (value.schedule === undefined || isSchedule(value.schedule))
     && (value.status === undefined || value.status === 'active' || value.status === 'paused')
+    && (value.reminder === undefined || isReminder(value.reminder))
     && typeof value.streak === 'number'
     && typeof value.startDate === 'string'
     && Array.isArray(value.completionHistory)

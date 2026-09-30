@@ -1,5 +1,5 @@
 import { differenceInCalendarDays, format, isBefore, parseISO, subDays } from 'date-fns';
-import { Habit, HabitSchedule, Log, LogStatus, Weekday } from '../types/';
+import { Habit, HabitReminder, HabitSchedule, Log, LogStatus, Weekday } from '../types/';
 import {v4 as uuidv4} from 'uuid';
 import { DAILY_FREQUENCY, DATE_FORMAT_FULL, HISTORY_DAYS_TO_SHOW, WEEKDAY_FREQUENCIES } from './constants';
 import { getToday, getCurrentTimestamp, getLastNDates } from './dateUtils';
@@ -26,7 +26,8 @@ export const getFrequencyForSchedule = (schedule: HabitSchedule): string[] => {
 export const createHabit = (
   name: string,
   description: string,
-  schedule: HabitSchedule = { type: 'daily' }
+  schedule: HabitSchedule = { type: 'daily' },
+  reminder?: HabitReminder
 ) => {
   const newHabit: Habit = {
     id: uuidv4(),
@@ -34,6 +35,7 @@ export const createHabit = (
     description,
     frequency: getFrequencyForSchedule(schedule),
     schedule,
+    reminder,
     streak: 0,
     startDate: getToday(),
     completionHistory: []

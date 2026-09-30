@@ -39,4 +39,11 @@ describe('Habitron backups', () => {
       habits: backup.habits
     }))).toThrow('not a valid Habitron backup');
   });
+
+  it('rejects invalid reminder times', () => {
+    const habit = createHabit('Exercise', '', { type: 'daily' }, { enabled: true, time: '25:00' });
+
+    expect(() => parseBackup(serializeBackup([habit])))
+      .toThrow('not a valid Habitron backup');
+  });
 });
