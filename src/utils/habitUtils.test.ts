@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { Habit, Log } from '../types/';
-import { DAILY_FREQUENCY, HISTORY_DAYS_TO_SHOW } from './constants';
+import { Habit, LegacyHabit, Log } from '../types/';
+import { HISTORY_DAYS_TO_SHOW } from './constants';
 import {
   getActivityCalendarData,
   getCurrentStreak,
-  getHabitSchedule,
-  isHabitScheduledForDate
+  isHabitScheduledForDate,
+  migrateLegacyHabit
 } from './habitUtils';
 import { getToday } from './dateUtils';
 
@@ -21,22 +21,15 @@ const makeHabit = (overrides: Partial<Habit> = {}): Habit => ({
   id: 'habit-1',
   name: 'Test habit',
   description: '',
-  frequency: [DAILY_FREQUENCY],
-  streak: 0,
+  schedule: { type: 'daily' },
   startDate: '2026-09-19',
   completionHistory: [],
   ...overrides
 });
 
 describe('habit scheduling', () => {
-  it('treats an empty legacy frequency as daily', () => {
-    const habit = makeHabit({ frequency: [] });
-
-    expect(isHabitScheduledForDate(habit, '2026-09-22')).toBe(true);
-  });
-
   it('matches selected weekdays only', () => {
-    const habit = makeHabit({ frequency: ['monday', 'wednesday'] });
+    const habit = makeHabit({ schedule: { type: 'weekdays', days: ['monday', 'wednesday'] } });
 
     expect(isHabitScheduledForDate(habit, '2026-09-21')).toBe(true);
     expect(isHabitScheduledForDate(habit, '2026-09-22')).toBe(false);
@@ -53,13 +46,60 @@ describe('habit scheduling', () => {
     expect(isHabitScheduledForDate(habit, '2026-09-18')).toBe(false);
   });
 
-  it('resolves legacy weekday frequencies into the schedule model', () => {
-    const habit = makeHabit({ frequency: ['monday', 'wednesday'] });
+});
 
-    expect(getHabitSchedule(habit)).toEqual({
-      type: 'weekdays',
-      days: ['monday', 'wednesday']
-    });
+describe('legacy habit migration', () => {
+  const makeLegacyHabit = (overrides: Partial<LegacyHabit> = {}): LegacyHabit => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { schedule, ...habit } = makeHabit();
+    return { ...habit, frequency: [], streak: 3, ...overrides };
+  };
+
+  it('migrates a habit saved by an early version of the app', () => {
+    // Taken from a real version 0 store file
+    const legacyHabit: LegacyHabit = {
+      id: '3f89d718-3e62-4370-bec6-ef3b3fa89cbe',
+      name: '123123',
+      description: '123',
+      frequency: [],
+      streak: 0,
+      startDate: '2025-03-13',
+      completionHistory: [{
+        id: '208cad4a-937f-4722-8a57-77e39f8957a1',
+        timestamp: 1741898848561,
+        date: '2025-03-13',
+        type: 'manual',
+        completed: true
+      }]
+    };
+
+    const { frequency, streak, ...rest } = legacyHabit;
+    expect(frequency).toEqual([]);
+    expect(streak).toBe(0);
+    expect(migrateLegacyHabit(legacyHabit)).toEqual({ ...rest, schedule: { type: 'daily' } });
+  });
+
+  it('treats an empty or daily legacy frequency as daily', () => {
+    expect(migrateLegacyHabit(makeLegacyHabit()).schedule).toEqual({ type: 'daily' });
+    expect(migrateLegacyHabit(makeLegacyHabit({ frequency: ['daily'] })).schedule)
+      .toEqual({ type: 'daily' });
+  });
+
+  it('converts legacy weekday frequencies into a weekday schedule', () => {
+    const habit = migrateLegacyHabit(makeLegacyHabit({ frequency: ['monday', 'wednesday'] }));
+
+    expect(habit.schedule).toEqual({ type: 'weekdays', days: ['monday', 'wednesday'] });
+    expect(habit).not.toHaveProperty('frequency');
+    expect(habit).not.toHaveProperty('streak');
+  });
+
+  it('keeps an existing schedule over the legacy frequency', () => {
+    const habit = migrateLegacyHabit(makeLegacyHabit({
+      frequency: [],
+      schedule: { type: 'interval', intervalDays: 3 }
+    }));
+
+    expect(habit.schedule).toEqual({ type: 'interval', intervalDays: 3 });
   });
 });
 
@@ -77,7 +117,7 @@ describe('current streaks', () => {
 
   it('skips non-scheduled weekdays when calculating a streak', () => {
     const habit = makeHabit({
-      frequency: ['monday', 'wednesday'],
+      schedule: { type: 'weekdays', days: ['monday', 'wednesday'] },
       completionHistory: [makeLog('2026-09-21')]
     });
 

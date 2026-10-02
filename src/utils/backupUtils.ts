@@ -1,7 +1,9 @@
-import { Habit, HabitSchedule, Log, Weekday } from '../types/';
+import { Habit, HabitSchedule, LegacyHabit, Log, Weekday } from '../types/';
 import { WEEKDAY_FREQUENCIES } from './constants';
+import { migrateLegacyHabit } from './habitUtils';
 
-const BACKUP_VERSION = 1;
+const BACKUP_VERSION = 2;
+const LEGACY_BACKUP_VERSION = 1;
 
 export interface HabitronBackup {
   version: typeof BACKUP_VERSION;
@@ -50,22 +52,28 @@ const isReminder = (value: unknown): boolean => {
     && /^([01]\d|2[0-3]):[0-5]\d$/.test(value.time);
 };
 
-const isHabit = (value: unknown): value is Habit => {
-  if (!isRecord(value)) return false;
-
-  return typeof value.id === 'string'
+const hasValidHabitFields = (value: Record<string, unknown>) =>
+  typeof value.id === 'string'
     && typeof value.name === 'string'
     && (value.description === undefined || typeof value.description === 'string')
-    && Array.isArray(value.frequency)
-    && value.frequency.every((item) => typeof item === 'string')
-    && (value.schedule === undefined || isSchedule(value.schedule))
     && (value.status === undefined || value.status === 'active' || value.status === 'paused')
     && (value.reminder === undefined || isReminder(value.reminder))
-    && typeof value.streak === 'number'
     && typeof value.startDate === 'string'
     && Array.isArray(value.completionHistory)
     && value.completionHistory.every(isLog);
-};
+
+const isHabit = (value: unknown): value is Habit =>
+  isRecord(value)
+    && hasValidHabitFields(value)
+    && isSchedule(value.schedule);
+
+const isLegacyHabit = (value: unknown): value is LegacyHabit =>
+  isRecord(value)
+    && hasValidHabitFields(value)
+    && Array.isArray(value.frequency)
+    && value.frequency.every((item) => typeof item === 'string')
+    && (value.schedule === undefined || isSchedule(value.schedule))
+    && typeof value.streak === 'number';
 
 export const serializeBackup = (habits: Habit[]) => {
   const backup: HabitronBackup = {
@@ -87,12 +95,18 @@ export const parseBackup = (content: string): Habit[] => {
   }
 
   if (!isRecord(parsed)
-    || parsed.version !== BACKUP_VERSION
     || typeof parsed.exportedAt !== 'string'
-    || !Array.isArray(parsed.habits)
-    || !parsed.habits.every(isHabit)) {
+    || !Array.isArray(parsed.habits)) {
     throw new Error('The backup file is not a valid Habitron backup.');
   }
 
-  return parsed.habits;
+  const { habits } = parsed;
+  if (parsed.version === BACKUP_VERSION && habits.every(isHabit)) {
+    return habits;
+  }
+  if (parsed.version === LEGACY_BACKUP_VERSION && habits.every(isLegacyHabit)) {
+    return habits.map(migrateLegacyHabit);
+  }
+
+  throw new Error('The backup file is not a valid Habitron backup.');
 };

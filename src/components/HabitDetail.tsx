@@ -10,7 +10,6 @@ import HabitHistory from './HabitHistory';
 import useHabitronNavigation from '../hooks/useHabitronNavigation';
 import Card from './Card';
 import { getCurrentStreak } from '../utils/habitUtils';
-// import HabitCalendar from './HabitCalendar';
 
 
 const HabitDetail = () => {
@@ -61,7 +60,6 @@ const HabitDetail = () => {
         }
       </Card>      
         <HabitHistory habit={habit} />
-        {/* <HabitCalendar habitStartDate={habit.startDate} completedDates={habit.completedDates} /> */}      
       </>
     ) : (
       <div>Habit not found</div>

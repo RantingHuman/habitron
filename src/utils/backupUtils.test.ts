@@ -14,8 +14,33 @@ describe('Habitron backups', () => {
 
   it('rejects malformed JSON and unknown backup shapes', () => {
     expect(() => parseBackup('{')).toThrow('not valid JSON');
-    expect(() => parseBackup(JSON.stringify({ version: 1, habits: [] })))
+    expect(() => parseBackup(JSON.stringify({ version: 2, habits: [] })))
       .toThrow('not a valid Habitron backup');
+    expect(() => parseBackup(JSON.stringify({ version: 3, exportedAt: '', habits: [] })))
+      .toThrow('not a valid Habitron backup');
+  });
+
+  it('imports version 1 backups by migrating their frequency to a schedule', () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { schedule, ...habit } = createHabit('Read', '');
+    const legacyHabit = { ...habit, frequency: ['monday', 'friday'], streak: 4 };
+
+    expect(parseBackup(JSON.stringify({
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      habits: [legacyHabit]
+    }))).toEqual([{ ...habit, schedule: { type: 'weekdays', days: ['monday', 'friday'] } }]);
+  });
+
+  it('rejects version 2 habits without a schedule', () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { schedule, ...habit } = createHabit('Read', '');
+
+    expect(() => parseBackup(JSON.stringify({
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      habits: [habit]
+    }))).toThrow('not a valid Habitron backup');
   });
 
   it('rejects invalid interval schedules', () => {
@@ -34,7 +59,7 @@ describe('Habitron backups', () => {
     backup.habits[0].completionHistory.push({ status: 'unknown' });
 
     expect(() => parseBackup(JSON.stringify({
-      version: 1,
+      version: 2,
       exportedAt: new Date().toISOString(),
       habits: backup.habits
     }))).toThrow('not a valid Habitron backup');

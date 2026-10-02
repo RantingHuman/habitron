@@ -1,6 +1,6 @@
 name: habitron
 options:
-  bundleIdPrefix: com.tauri.dev
+  bundleIdPrefix: com.rantinghuman
   deploymentTarget:
     iOS: 13.0
 fileGroups: [../../src]
@@ -11,7 +11,7 @@ settingGroups:
   app:
     base:
       PRODUCT_NAME: habitron
-      PRODUCT_BUNDLE_IDENTIFIER: com.tauri.dev
+      PRODUCT_BUNDLE_IDENTIFIER: com.rantinghuman.habitron
 targetTemplates:
   app:
     type: application

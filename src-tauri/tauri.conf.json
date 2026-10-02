@@ -42,7 +42,7 @@
   },
   "productName": "habitron",
   "version": "0.1.0",
-  "identifier": "com.tauri.dev",
+  "identifier": "com.rantinghuman.habitron",
   "plugins": {},
   "app": {
     "windows": [

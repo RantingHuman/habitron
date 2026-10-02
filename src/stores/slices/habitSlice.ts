@@ -1,6 +1,5 @@
 import { StateCreator } from 'zustand';
 import { Habit, Log, LogStatus } from '../../types/';
-import testHabits from '../../data/testHabits';
 import { createLog, getLogStatus } from '../../utils/habitUtils';
 
 export interface HabitSlice {
@@ -13,7 +12,6 @@ export interface HabitSlice {
   getHabit: (id?: string) => Habit | undefined;
   getLog: (habitId: string, date: string) => Log | undefined;
   toggleHabitCompletion: (habit: Habit, log: Log) => void;
-  addTestHabits: () => void;
   resetHabits: () => void;
 }
 
@@ -46,7 +44,6 @@ const toggleHabitCompletion = (habit: Habit, log: Log): Habit => {
 
 export const createHabitSlice: StateCreator<HabitSlice> = (set, get) => ({
   habits: [],
-  addTestHabits: () => set(() => ({ habits: testHabits })),
   resetHabits: () => set(() => ({ habits: [] as Habit[] })),
   addHabit: (habit: Habit) => set((state) => ({ habits: addHabit(state.habits, habit) })),
   removeHabit: (id) => set((state) => ({ habits: removeHabit(state.habits, id) })),

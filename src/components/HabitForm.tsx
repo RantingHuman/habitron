@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import FormInput from './form-elements/FormInput';
 import Button from './buttons/Button';
-import { createHabit, getFrequencyForSchedule, getHabitSchedule } from '../utils/habitUtils';
+import { createHabit } from '../utils/habitUtils';
 import { VALIDATION_MESSAGES, WEEKDAY_FREQUENCIES } from '../utils/constants';
 import useHabitronNavigation from '../hooks/useHabitronNavigation';
 import ValidationError from './dialogs/ValidationError';
@@ -17,9 +17,7 @@ const HabitForm = () => {
   const habit = getHabit(id);
   const [name, setName] = useState(habit?.name || '');
   const [description, setDescription] = useState(habit?.description || '');
-  const [schedule, setSchedule] = useState<HabitSchedule>(() =>
-    habit ? getHabitSchedule(habit) : { type: 'daily' }
-  );
+  const [schedule, setSchedule] = useState<HabitSchedule>(habit?.schedule ?? { type: 'daily' });
   const [reminderEnabled, setReminderEnabled] = useState(habit?.reminder?.enabled ?? false);
   const [reminderTime, setReminderTime] = useState(habit?.reminder?.time ?? '09:00');
 
@@ -69,7 +67,6 @@ const HabitForm = () => {
         ...habit,
         name,
         description,
-        frequency: getFrequencyForSchedule(schedule),
         schedule,
         reminder: reminderEnabled ? { enabled: true, time: reminderTime } : undefined
       });

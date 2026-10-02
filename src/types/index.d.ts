@@ -3,6 +3,7 @@ export {
   HabitReminder,
   HabitSchedule,
   HabitStatus,
+  LegacyHabit,
   Log,
   LogStatus,
   Weekday

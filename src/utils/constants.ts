@@ -3,7 +3,7 @@ export const HOME_DAYS_TO_SHOW = 4;
 export const DATE_FORMAT_MON_DAY = 'MMM dd';
 export const DATE_FORMAT_FULL = 'yyyy-MM-dd';
 export const HISTORY_DAYS_TO_SHOW = 99;
-export const DAILY_FREQUENCY = 'daily';
+export const LEGACY_DAILY_FREQUENCY = 'daily';
 export const WEEKDAY_FREQUENCIES = [
   { value: 'monday', label: 'Mon' },
   { value: 'tuesday', label: 'Tue' },

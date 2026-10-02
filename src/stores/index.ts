@@ -1,8 +1,11 @@
-import { Store } from "@tauri-apps/plugin-store";
+import { load, type Store } from "@tauri-apps/plugin-store";
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { create } from 'zustand';
 import { createHabitSlice, type HabitSlice } from "./slices/habitSlice";
 import { createSystemSlice, type SystemSlice } from "./slices/systemSlice";
+import { Habit, LegacyHabit } from '../types/';
+import { migrateLegacyHabit } from '../utils/habitUtils';
+import { isTauriRuntime } from '../utils/platform';
 
 interface PersistenceState {
   hasHydrated: boolean;
@@ -22,7 +25,47 @@ export const usePersistenceStore = create<PersistenceState>((set) => ({
   clearError: () => set({ error: null })
 }));
 
-const habitronTauriStore = new Store("./habitron.bin");
+const TAURI_STORE_PATH = './habitron.bin';
+
+interface KeyValueBackend {
+  get: (name: string) => Promise<string | null>;
+  set: (name: string, value: string) => Promise<void>;
+  delete: (name: string) => Promise<void>;
+}
+
+const createTauriBackend = (path: string): KeyValueBackend => {
+  let storePromise: Promise<Store> | null = null;
+
+  // Load lazily and forget a failed load so a retry can try again
+  const getStore = () => {
+    storePromise ??= load(path, { autoSave: false, defaults: {} }).catch((error) => {
+      storePromise = null;
+      throw error;
+    });
+    return storePromise;
+  };
+
+  return {
+    get: async (name) => (await (await getStore()).get<string>(name)) ?? null,
+    set: async (name, value) => {
+      const store = await getStore();
+      await store.set(name, value);
+      await store.save();
+    },
+    delete: async (name) => {
+      const store = await getStore();
+      await store.delete(name);
+      await store.save();
+    }
+  };
+};
+
+// Lets the app run in a plain browser (`npm run dev`) without the Tauri runtime
+const localStorageBackend: KeyValueBackend = {
+  get: async (name) => window.localStorage.getItem(name),
+  set: async (name, value) => window.localStorage.setItem(name, value),
+  delete: async (name) => window.localStorage.removeItem(name)
+};
 
 const getErrorMessage = (error: unknown) =>
   error instanceof Error ? error.message : 'Unknown persistence error';
@@ -32,7 +75,7 @@ interface PersistenceCallbacks {
   onSuccess: () => void;
 }
 
-const getStorage = (store: Store, callbacks: PersistenceCallbacks): StateStorage => {
+const getStorage = (backend: KeyValueBackend, callbacks: PersistenceCallbacks): StateStorage => {
   const handleError = (operation: string, error: unknown): never => {
     console.error(`Failed to ${operation} Habitron storage`, error);
     callbacks.onError(error);
@@ -42,15 +85,14 @@ const getStorage = (store: Store, callbacks: PersistenceCallbacks): StateStorage
   return {
     getItem: async (name: string): Promise<string | null> => {
       try {
-        return (await store.get<string>(name)) ?? null;
+        return await backend.get(name);
       } catch (error) {
         return handleError(`read ${name} from`, error);
       }
     },
     setItem: async (name: string, value: string): Promise<void> => {
       try {
-        await store.set(name, value);
-        await store.save();
+        await backend.set(name, value);
         callbacks.onSuccess();
       } catch (error) {
         handleError(`save ${name} to`, error);
@@ -58,8 +100,7 @@ const getStorage = (store: Store, callbacks: PersistenceCallbacks): StateStorage
     },
     removeItem: async (name: string): Promise<void> => {
       try {
-        await store.delete(name);
-        await store.save();
+        await backend.delete(name);
         callbacks.onSuccess();
       } catch (error) {
         handleError(`remove ${name} from`, error);
@@ -84,16 +125,21 @@ export const useHabitronStore = create<HabitronState>()(
     }),
     {
       name: 'habitron',
-      version: 1,
-      storage: createJSONStorage(() => getStorage(habitronTauriStore, persistenceCallbacks)),
+      version: 2,
+      storage: createJSONStorage(() => getStorage(
+        isTauriRuntime() ? createTauriBackend(TAURI_STORE_PATH) : localStorageBackend,
+        persistenceCallbacks
+      )),
       partialize: (state): PersistedHabitronState => ({
         habits: state.habits,
         darkMode: state.darkMode
       }),
-      migrate: (persistedState) => {
-        const state = persistedState as Partial<PersistedHabitronState>;
+      migrate: (persistedState, version) => {
+        const state = persistedState as { habits?: Array<Habit | LegacyHabit>; darkMode?: boolean };
+        const habits = state.habits ?? [];
         return {
-          habits: state.habits ?? [],
+          // Version 1 stored `frequency` and `streak`; version 2 requires `schedule`
+          habits: version < 2 ? habits.map(migrateLegacyHabit) : habits as Habit[],
           darkMode: state.darkMode ?? false
         };
       },

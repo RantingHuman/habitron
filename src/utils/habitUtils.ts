@@ -1,26 +1,27 @@
 import { differenceInCalendarDays, format, isBefore, parseISO, subDays } from 'date-fns';
-import { Habit, HabitReminder, HabitSchedule, Log, LogStatus, Weekday } from '../types/';
+import { Habit, HabitReminder, HabitSchedule, LegacyHabit, Log, LogStatus, Weekday } from '../types/';
 import {v4 as uuidv4} from 'uuid';
-import { DAILY_FREQUENCY, DATE_FORMAT_FULL, HISTORY_DAYS_TO_SHOW, WEEKDAY_FREQUENCIES } from './constants';
+import { DATE_FORMAT_FULL, LEGACY_DAILY_FREQUENCY, HISTORY_DAYS_TO_SHOW, WEEKDAY_FREQUENCIES } from './constants';
 import { getToday, getCurrentTimestamp, getLastNDates } from './dateUtils';
 
 const isWeekday = (value: string): value is Weekday =>
   WEEKDAY_FREQUENCIES.some(({ value: weekday }) => weekday === value);
 
-export const getHabitSchedule = (habit: Habit): HabitSchedule => {
-  if (habit.schedule) return habit.schedule;
-
-  const frequency = habit.frequency?.length ? habit.frequency : [DAILY_FREQUENCY];
-  if (frequency.includes(DAILY_FREQUENCY)) return { type: 'daily' };
+const getScheduleFromLegacyFrequency = (frequency: string[] = []): HabitSchedule => {
+  if (frequency.length === 0 || frequency.includes(LEGACY_DAILY_FREQUENCY)) return { type: 'daily' };
 
   const days = frequency.filter(isWeekday);
   return days.length > 0 ? { type: 'weekdays', days } : { type: 'daily' };
 };
 
-export const getFrequencyForSchedule = (schedule: HabitSchedule): string[] => {
-  if (schedule.type === 'daily') return [DAILY_FREQUENCY];
-  if (schedule.type === 'weekdays') return [...schedule.days];
-  return [];
+// Converts a habit saved before schedules existed; `streak` is dropped because it is always computed
+export const migrateLegacyHabit = (legacyHabit: LegacyHabit | Habit): Habit => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { frequency, streak, ...habit } = legacyHabit as LegacyHabit;
+  return {
+    ...habit,
+    schedule: habit.schedule ?? getScheduleFromLegacyFrequency(frequency)
+  };
 };
 
 export const createHabit = (
@@ -33,10 +34,8 @@ export const createHabit = (
     id: uuidv4(),
     name,
     description,
-    frequency: getFrequencyForSchedule(schedule),
     schedule,
     reminder,
-    streak: 0,
     startDate: getToday(),
     completionHistory: []
   };
@@ -70,7 +69,7 @@ export const isHabitScheduledForDate = (habit: Habit, date: string) => {
   const startDate = parseISO(habit.startDate);
   if (isBefore(currentDate, startDate)) return false;
 
-  const schedule = getHabitSchedule(habit);
+  const { schedule } = habit;
   if (schedule.type === 'daily') return true;
 
   if (schedule.type === 'weekdays') {

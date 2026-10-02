@@ -7,11 +7,9 @@ import {
 import { useHabitronStore } from '../stores';
 import { getToday } from '../utils/dateUtils';
 import { isReminderDue } from '../utils/reminderUtils';
+import { isTauriRuntime } from '../utils/platform';
 
 const notifiedReminders = new Set<string>();
-
-const isTauriRuntime = () =>
-  typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
 const useReminderNotifications = () => {
   const habits = useHabitronStore((state) => state.habits);

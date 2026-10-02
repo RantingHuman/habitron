@@ -2,6 +2,7 @@ import { useHabitronStore } from '../stores';
 import HabitListItem from './HabitListItem';
 import HabitListHeader from './HabitListHeader';
 import Button from './buttons/Button';
+import ConfirmationDialog from './dialogs/ConfirmationDialog';
 import { NavLink } from 'react-router-dom';
 import { parseISO } from 'date-fns';
 import { getLastNDates, getToday } from '../utils/dateUtils';
@@ -12,6 +13,7 @@ import { useEffect, useMemo, useState } from 'react';
 const HabitList = () => {
   const { habits, resetHabits } = useHabitronStore();
   const [today, setToday] = useState(() => getToday());
+  const [showResetDialog, setShowResetDialog] = useState(false);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -28,6 +30,12 @@ const HabitList = () => {
     () => getLastNDates(HOME_DAYS_TO_SHOW, parseISO(today)),
     [today]
   );
+
+  const handleReset = () => {
+    resetHabits();
+    setShowResetDialog(false);
+  };
+
   return (
   habits.length > 0 ?
     <div>      
@@ -38,7 +46,12 @@ const HabitList = () => {
         ))}
       </ul>
       <br />
-      <Button appearance="danger" name="reset-habits" onClick={resetHabits}>Reset Habits</Button>
+      <Button appearance="danger" name="reset-habits" onClick={() => setShowResetDialog(true)}>Reset Habits</Button>
+      { showResetDialog &&
+        <ConfirmationDialog isOpen={showResetDialog} title='Reset Habits'
+          message='This permanently deletes all habits and their history. Export a backup first if you might want them back.'
+          onConfirm={handleReset} onCancel={() => setShowResetDialog(false)} />
+      }
     </div>
     :
     <div>

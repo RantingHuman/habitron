@@ -26,12 +26,16 @@ export interface Habit {
     id: string;
     name: string;
     description?: string;
-    frequency: string[]; // days of the week
-    schedule?: HabitSchedule;
+    schedule: HabitSchedule;
     status?: HabitStatus;
     reminder?: HabitReminder;
-    streak: number; // number of days in a row. Eventually, this will be its own type
     startDate: string;
     completionHistory: Log[];
+}
 
+// Shape of habits saved before schedules replaced the frequency list (persist/backup version 1)
+export interface LegacyHabit extends Omit<Habit, 'schedule'> {
+    frequency: string[];
+    schedule?: HabitSchedule;
+    streak: number;
 }
