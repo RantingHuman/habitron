@@ -122,6 +122,14 @@ const isScheduleDay = (schedule: HabitSchedule, date: string) => {
   return ((daysFromAnchor % schedule.intervalDays) + schedule.intervalDays) % schedule.intervalDays === 0;
 };
 
+// Tapping a day cycles Open -> Done -> Skip -> Missed -> Open; null clears the log
+const LOG_STATUS_CYCLE: Array<LogStatus | null> = [null, 'completed', 'skipped', 'missed'];
+
+export const getNextLogStatus = (status: LogStatus | 'unlogged'): LogStatus | null => {
+  const index = LOG_STATUS_CYCLE.indexOf(status === 'unlogged' ? null : status);
+  return LOG_STATUS_CYCLE[(index + 1) % LOG_STATUS_CYCLE.length];
+};
+
 export const isHabitScheduledForDate = (habit: Habit, date: string) =>
   date >= habit.startDate
     && !isHabitPausedOn(habit, date)

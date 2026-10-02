@@ -5,6 +5,7 @@ import './App.css'
 import Layout from './Layout';
 import { useHabitronStore } from './stores/';
 import HabitDetail from './components/HabitDetail';
+import Settings from './components/Settings';
 import { ROUTES } from './utils/constants';
 
 function App() {
@@ -18,6 +19,7 @@ function App() {
             <Route path={ROUTES.ADD_HABIT} element={<HabitForm />} />
             <Route path={ROUTES.EDIT_HABIT} element={<HabitForm />} />
             <Route path={ROUTES.VIEW_HABIT} element={<HabitDetail />} />
+            <Route path={ROUTES.SETTINGS} element={<Settings />} />
           </Route>
         </Routes>
       </div>

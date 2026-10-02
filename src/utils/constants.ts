@@ -1,5 +1,8 @@
 export const APP_NAME = 'Habitron';
-export const HOME_DAYS_TO_SHOW = 4;
+export const HOME_DAYS_TO_SHOW = 7;
+// One column per day, plus a name column on wider screens (phones put the name on its own line);
+// shared by the home header and rows so they line up
+export const HOME_GRID_COLUMNS = 'grid grid-cols-7 sm:grid-cols-[minmax(0,1fr)_repeat(7,2rem)] gap-x-1 gap-y-1 items-center';
 export const DATE_FORMAT_MON_DAY = 'MMM dd';
 export const DATE_FORMAT_FULL = 'yyyy-MM-dd';
 export const HISTORY_DAYS_TO_SHOW = 99;
@@ -30,4 +33,5 @@ export const ROUTES = {
   ADD_HABIT: '/add-habit',
   VIEW_HABIT: '/view-habit/:id',
   EDIT_HABIT: '/edit-habit/:id',
+  SETTINGS: '/settings',
 };

@@ -1,59 +1,63 @@
-import { ChangeEvent, useRef, useState } from 'react';
+import { useState } from 'react';
 import Button from './buttons/Button';
+import ConfirmationDialog from './dialogs/ConfirmationDialog';
 import { useHabitronStore } from '../stores';
+import { Habit } from '../types/';
 import { parseBackup, serializeBackup } from '../utils/backupUtils';
+import { openTextFile, saveTextFile } from '../utils/fileUtils';
+
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : typeof error === 'string' ? error : fallback;
 
 const DataBackup = () => {
   const { habits, replaceHabits } = useHabitronStore();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [pendingImport, setPendingImport] = useState<Habit[] | null>(null);
 
-  const handleExport = () => {
-    const blob = new Blob([serializeBackup(habits)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `habitron-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    link.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 0);
-    setError('');
-    setMessage('Backup exported.');
+  const showResult = (nextMessage: string, nextError = '') => {
+    setMessage(nextMessage);
+    setError(nextError);
   };
 
-  const handleImport = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-
+  const handleExport = async () => {
     try {
-      const importedHabits = parseBackup(await file.text());
-      if (!window.confirm('Replace your current habits with this backup?')) return;
-
-      replaceHabits(importedHabits);
-      setError('');
-      setMessage(`Imported ${importedHabits.length} habit${importedHabits.length === 1 ? '' : 's'}.`);
-    } catch (importError) {
-      setMessage('');
-      setError(importError instanceof Error ? importError.message : 'Could not import the backup.');
+      const fileName = `habitron-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      if (await saveTextFile(fileName, serializeBackup(habits))) showResult('Backup exported.');
+    } catch (exportError) {
+      showResult('', getErrorMessage(exportError, 'Could not export the backup.'));
     }
   };
 
+  const handleImport = async () => {
+    try {
+      const content = await openTextFile();
+      if (content !== null) setPendingImport(parseBackup(content));
+    } catch (importError) {
+      showResult('', getErrorMessage(importError, 'Could not import the backup.'));
+    }
+  };
+
+  const handleConfirmImport = () => {
+    if (!pendingImport) return;
+    replaceHabits(pendingImport);
+    showResult(`Imported ${pendingImport.length} habit${pendingImport.length === 1 ? '' : 's'}.`);
+    setPendingImport(null);
+  };
+
   return (
-    <div className='flex flex-wrap items-center justify-end gap-2'>
-      <Button name='export-data' appearance='secondary' onClick={handleExport}>Export</Button>
-      <Button name='import-data' appearance='secondary' onClick={() => fileInputRef.current?.click()}>
-        Import
-      </Button>
-      <input
-        ref={fileInputRef}
-        type='file'
-        accept='application/json,.json'
-        className='hidden'
-        onChange={handleImport}
-      />
+    <div className='flex flex-col gap-2'>
+      <div className='flex flex-wrap gap-2'>
+        <Button name='export-data' appearance='secondary' onClick={() => void handleExport()}>Export</Button>
+        <Button name='import-data' appearance='secondary' onClick={() => void handleImport()}>Import</Button>
+      </div>
       {message && <span role='status' className='text-sm'>{message}</span>}
       {error && <span role='alert' className='text-sm text-red-700 dark:text-red-300'>{error}</span>}
+      { pendingImport &&
+        <ConfirmationDialog isOpen={!!pendingImport} title='Import Backup'
+          message={`Replace your current habits with the ${pendingImport.length} in this backup?`}
+          onConfirm={handleConfirmImport} onCancel={() => setPendingImport(null)} />
+      }
     </div>
   );
 };

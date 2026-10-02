@@ -6,6 +6,7 @@ import {
   canLogHabitOnDate,
   getActivityCalendarData,
   getCurrentStreak,
+  getNextLogStatus,
   isHabitPausedOn,
   isHabitScheduledForDate,
   migrateLegacyHabit,
@@ -80,6 +81,15 @@ describe('habit scheduling', () => {
     expect(canLogHabitOnDate(habit, '2026-09-21')).toBe(true);
     expect(canLogHabitOnDate(habit, '2026-09-22')).toBe(false);
     expect(canLogHabitOnDate(habit, '2026-09-23')).toBe(false);
+  });
+});
+
+describe('log status cycle', () => {
+  it('cycles open, done, skip, missed, and back to open', () => {
+    expect(getNextLogStatus('unlogged')).toBe('completed');
+    expect(getNextLogStatus('completed')).toBe('skipped');
+    expect(getNextLogStatus('skipped')).toBe('missed');
+    expect(getNextLogStatus('missed')).toBeNull();
   });
 });
 

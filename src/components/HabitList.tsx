@@ -2,18 +2,20 @@ import { useHabitronStore } from '../stores';
 import HabitListItem from './HabitListItem';
 import HabitListHeader from './HabitListHeader';
 import Button from './buttons/Button';
-import ConfirmationDialog from './dialogs/ConfirmationDialog';
 import { NavLink } from 'react-router-dom';
-import { parseISO } from 'date-fns';
+import { parseISO, subWeeks } from 'date-fns';
 import { getLastNDates, getToday } from '../utils/dateUtils';
 import { HOME_DAYS_TO_SHOW } from '../utils/constants';
-import { useEffect, useMemo, useState } from 'react';
+import { TouchEvent, useEffect, useMemo, useRef, useState } from 'react';
 
+const SWIPE_THRESHOLD_PX = 50;
 
 const HabitList = () => {
-  const { habits, resetHabits } = useHabitronStore();
+  const { habits } = useHabitronStore();
   const [today, setToday] = useState(() => getToday());
-  const [showResetDialog, setShowResetDialog] = useState(false);
+  // 0 shows the week ending today, 1 the week before, and so on
+  const [weeksBack, setWeeksBack] = useState(0);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -26,32 +28,46 @@ const HabitList = () => {
     return () => window.clearInterval(intervalId);
   }, []);
 
-  const lastNDates = useMemo(
-    () => getLastNDates(HOME_DAYS_TO_SHOW, parseISO(today)),
-    [today]
+  const dates = useMemo(
+    () => getLastNDates(HOME_DAYS_TO_SHOW, subWeeks(parseISO(today), weeksBack)),
+    [today, weeksBack]
   );
 
-  const handleReset = () => {
-    resetHabits();
-    setShowResetDialog(false);
+  const showOlderWeek = () => setWeeksBack((weeks) => weeks + 1);
+  const showNewerWeek = () => setWeeksBack((weeks) => Math.max(0, weeks - 1));
+
+  const handleTouchStart = (event: TouchEvent) => {
+    const touch = event.touches[0];
+    touchStart.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleTouchEnd = (event: TouchEvent) => {
+    if (!touchStart.current) return;
+    const touch = event.changedTouches[0];
+    const dx = touch.clientX - touchStart.current.x;
+    const dy = touch.clientY - touchStart.current.y;
+    touchStart.current = null;
+
+    // Swiping right reveals older days, like scrolling back through a calendar
+    if (Math.abs(dx) < SWIPE_THRESHOLD_PX || Math.abs(dx) < Math.abs(dy)) return;
+    if (dx > 0) showOlderWeek();
+    else showNewerWeek();
   };
 
   return (
   habits.length > 0 ?
-    <div>      
-      {<HabitListHeader dates={lastNDates} />}
+    <div onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+      <HabitListHeader
+        dates={dates}
+        today={today}
+        onOlder={showOlderWeek}
+        onNewer={weeksBack > 0 ? showNewerWeek : undefined}
+      />
       <ul>
         {habits.map((habit) => (
-          <HabitListItem key={habit.id} habit={habit} dates={lastNDates} />
+          <HabitListItem key={habit.id} habit={habit} dates={dates} />
         ))}
       </ul>
-      <br />
-      <Button appearance="danger" name="reset-habits" onClick={() => setShowResetDialog(true)}>Reset Habits</Button>
-      { showResetDialog &&
-        <ConfirmationDialog isOpen={showResetDialog} title='Reset Habits'
-          message='This permanently deletes all habits and their history. Export a backup first if you might want them back.'
-          onConfirm={handleReset} onCancel={() => setShowResetDialog(false)} />
-      }
     </div>
     :
     <div>

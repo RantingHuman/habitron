@@ -5,8 +5,10 @@ const ThemeToggle = () => {
 
   return (
     <button
+      type='button'
       onClick={toggleDarkMode}
-      className='fixed bottom-4 right-4 size-11 rounded-md text-2xl bg-yellow-300 dark:bg-slate-700 text-black dark:text-white shadow-custom'
+      aria-label={darkMode ? 'Switch to light theme' : 'Switch to dark theme'}
+      className='size-9 rounded-md text-xl bg-yellow-300 dark:bg-slate-700 text-black dark:text-white shadow-custom'
     >
       {darkMode ? '☀︎' : '☾'}
     </button>
