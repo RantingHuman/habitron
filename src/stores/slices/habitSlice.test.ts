@@ -59,6 +59,18 @@ describe('habit completion updates', () => {
     expect(store.getState().habits[0].completionHistory).toHaveLength(0);
   });
 
+  it('moves the start date back when an earlier day is logged', () => {
+    const habit = { ...createHabit('Journal', ''), startDate: '2026-09-22' };
+    store.setState({ habits: [habit] });
+
+    store.getState().setHabitLog(habit.id, '2026-09-20', 'completed');
+    expect(store.getState().habits[0].startDate).toBe('2026-09-20');
+
+    store.getState().setHabitLog(habit.id, '2026-09-21', 'skipped');
+    store.getState().setHabitLog(habit.id, '2026-09-20', null);
+    expect(store.getState().habits[0].startDate).toBe('2026-09-20');
+  });
+
   it('replaces habits with cloned completion histories', () => {
     const habit = createHabit('Write', '');
     store.getState().replaceHabits([habit]);

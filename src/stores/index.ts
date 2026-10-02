@@ -125,7 +125,7 @@ export const useHabitronStore = create<HabitronState>()(
     }),
     {
       name: 'habitron',
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => getStorage(
         isTauriRuntime() ? createTauriBackend(TAURI_STORE_PATH) : localStorageBackend,
         persistenceCallbacks
@@ -138,8 +138,8 @@ export const useHabitronStore = create<HabitronState>()(
         const state = persistedState as { habits?: Array<Habit | LegacyHabit>; darkMode?: boolean };
         const habits = state.habits ?? [];
         return {
-          // Version 1 stored `frequency` and `streak`; version 2 requires `schedule`
-          habits: version < 2 ? habits.map(migrateLegacyHabit) : habits as Habit[],
+          // Version 1 stored `frequency` and `streak`; version 2 a paused `status` and unanchored intervals
+          habits: version < 3 ? habits.map(migrateLegacyHabit) : habits as Habit[],
           darkMode: state.darkMode ?? false
         };
       },

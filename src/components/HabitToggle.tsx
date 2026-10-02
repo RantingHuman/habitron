@@ -1,7 +1,7 @@
 import { ChangeEvent } from 'react';
 import { useHabitronStore } from '../stores/';
 import { Habit, LogStatus } from '../types/';
-import { getLogStatus, isHabitScheduledForDate } from '../utils/habitUtils';
+import { canLogHabitOnDate, getLogStatus, isHabitPausedOn } from '../utils/habitUtils';
 interface HabitToggleProps {
   habit: Habit;
   date: string;
@@ -11,9 +11,9 @@ const HabitToggle = ({ habit, date }: HabitToggleProps) => {
   const { getLog, setHabitLog } = useHabitronStore();
   const log = getLog(habit.id, date);
   const status = getLogStatus(log);
-  const isScheduled = isHabitScheduledForDate(habit, date);
-  const isPaused = habit.status === 'paused';
-  const displayStatus = isPaused ? 'paused' : isScheduled ? status : 'not-due';
+  const isPaused = isHabitPausedOn(habit, date);
+  const canLog = canLogHabitOnDate(habit, date);
+  const displayStatus = isPaused ? 'paused' : canLog ? status : 'not-due';
 
   const handleStatusChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const nextStatus = event.target.value;
@@ -30,7 +30,7 @@ const HabitToggle = ({ habit, date }: HabitToggleProps) => {
         name={`habitStatus_${habit.id}${date}`}
         aria-label={`${habit.name} on ${date}`}
         value={displayStatus}
-        disabled={!isScheduled || isPaused}
+        disabled={!canLog}
         onChange={handleStatusChange}
         className='h-7 max-w-full rounded-md px-1 text-xs shadow-sm shadow-neutral-800/20'
       >

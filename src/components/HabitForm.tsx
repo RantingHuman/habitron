@@ -3,12 +3,13 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import FormInput from './form-elements/FormInput';
 import Button from './buttons/Button';
-import { createHabit } from '../utils/habitUtils';
+import { anchorSchedule, createHabit } from '../utils/habitUtils';
 import { VALIDATION_MESSAGES, WEEKDAY_FREQUENCIES } from '../utils/constants';
 import useHabitronNavigation from '../hooks/useHabitronNavigation';
 import ValidationError from './dialogs/ValidationError';
 import { HabitSchedule, Weekday } from '../types/';
 import { isValidReminderTime } from '../utils/reminderUtils';
+import { getToday } from '../utils/dateUtils';
 
 const HabitForm = () => {
   const { id } = useParams();
@@ -35,7 +36,7 @@ const HabitForm = () => {
     } else {
       setSchedule((currentSchedule) => currentSchedule.type === type
         ? currentSchedule
-        : { type, intervalDays: 2 });
+        : { type, intervalDays: 2, anchorDate: getToday() });
     }
   };
 
@@ -67,7 +68,7 @@ const HabitForm = () => {
         ...habit,
         name,
         description,
-        schedule,
+        schedule: anchorSchedule(schedule, habit.schedule),
         reminder: reminderEnabled ? { enabled: true, time: reminderTime } : undefined
       });
       navigateToViewHabit(habit.id);
@@ -75,7 +76,7 @@ const HabitForm = () => {
       addHabit(createHabit(
         name,
         description,
-        schedule,
+        anchorSchedule(schedule),
         reminderEnabled ? { enabled: true, time: reminderTime } : undefined
       ));
       navigateToHome();
@@ -167,7 +168,7 @@ const HabitForm = () => {
               min='2'
               max='365'
               value={schedule.intervalDays}
-              onChange={(e) => setSchedule({ type: 'interval', intervalDays: Number(e.target.value) })}
+              onChange={(e) => setSchedule({ ...schedule, intervalDays: Number(e.target.value) })}
               className='w-20 rounded-md'
             />
             days

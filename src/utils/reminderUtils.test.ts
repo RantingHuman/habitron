@@ -26,7 +26,7 @@ describe('habit reminders', () => {
     expect(isReminderDue(skippedHabit, new Date(2026, 8, 23, 10, 0))).toBe(false);
 
     const pausedHabit = makeReminderHabit();
-    pausedHabit.status = 'paused';
+    pausedHabit.pauses = [{ start: '2026-09-23' }];
     expect(isReminderDue(pausedHabit, new Date(2026, 8, 23, 10, 0))).toBe(false);
   });
 

@@ -35,7 +35,9 @@ const setHabitLogOnHabit = (habit: Habit, date: string, status: LogStatus | null
     ? { ...existingLog, completed: status === 'completed', status }
     : { ...createLog(date, 'manual', status === 'completed'), status };
 
-  return { ...habit, completionHistory: [...completionHistory, nextLog] };
+  // Logging a day before the habit started backfills history, so the habit now starts on that day
+  const startDate = date < habit.startDate ? date : habit.startDate;
+  return { ...habit, startDate, completionHistory: [...completionHistory, nextLog] };
 }
 const toggleHabitCompletion = (habit: Habit, log: Log): Habit => {
   const nextStatus = getLogStatus(log) === 'completed' ? null : 'completed';

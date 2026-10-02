@@ -1,9 +1,9 @@
-import { Habit, HabitSchedule, LegacyHabit, Log, Weekday } from '../types/';
+import { Habit, HabitPause, HabitSchedule, LegacyHabit, LegacyHabitSchedule, Log, Weekday } from '../types/';
 import { WEEKDAY_FREQUENCIES } from './constants';
 import { migrateLegacyHabit } from './habitUtils';
 
-const BACKUP_VERSION = 2;
-const LEGACY_BACKUP_VERSION = 1;
+const BACKUP_VERSION = 3;
+const LEGACY_BACKUP_VERSIONS = [1, 2];
 
 export interface HabitronBackup {
   version: typeof BACKUP_VERSION;
@@ -31,7 +31,10 @@ const isLog = (value: unknown): value is Log => {
 const isWeekday = (value: string): value is Weekday =>
   WEEKDAY_FREQUENCIES.some(({ value: weekday }) => weekday === value);
 
-const isSchedule = (value: unknown): value is HabitSchedule => {
+const isDate = (value: unknown): value is string =>
+  typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+
+const isLegacySchedule = (value: unknown): value is LegacyHabitSchedule => {
   if (!isRecord(value) || typeof value.type !== 'string') return false;
   if (value.type === 'daily') return true;
   if (value.type === 'weekdays') {
@@ -42,8 +45,18 @@ const isSchedule = (value: unknown): value is HabitSchedule => {
   return value.type === 'interval'
     && typeof value.intervalDays === 'number'
     && Number.isInteger(value.intervalDays)
-    && value.intervalDays >= 2;
+    && value.intervalDays >= 2
+    && (value.anchorDate === undefined || isDate(value.anchorDate));
 };
+
+const isSchedule = (value: unknown): value is HabitSchedule =>
+  isLegacySchedule(value)
+    && (value.type !== 'interval' || isDate(value.anchorDate));
+
+const isPause = (value: unknown): value is HabitPause =>
+  isRecord(value)
+    && isDate(value.start)
+    && (value.end === undefined || (isDate(value.end) && value.end > value.start));
 
 const isReminder = (value: unknown): boolean => {
   if (!isRecord(value)) return false;
@@ -56,7 +69,6 @@ const hasValidHabitFields = (value: Record<string, unknown>) =>
   typeof value.id === 'string'
     && typeof value.name === 'string'
     && (value.description === undefined || typeof value.description === 'string')
-    && (value.status === undefined || value.status === 'active' || value.status === 'paused')
     && (value.reminder === undefined || isReminder(value.reminder))
     && typeof value.startDate === 'string'
     && Array.isArray(value.completionHistory)
@@ -65,15 +77,19 @@ const hasValidHabitFields = (value: Record<string, unknown>) =>
 const isHabit = (value: unknown): value is Habit =>
   isRecord(value)
     && hasValidHabitFields(value)
-    && isSchedule(value.schedule);
+    && isSchedule(value.schedule)
+    && Array.isArray(value.pauses)
+    && value.pauses.every(isPause);
 
 const isLegacyHabit = (value: unknown): value is LegacyHabit =>
   isRecord(value)
     && hasValidHabitFields(value)
-    && Array.isArray(value.frequency)
-    && value.frequency.every((item) => typeof item === 'string')
-    && (value.schedule === undefined || isSchedule(value.schedule))
-    && typeof value.streak === 'number';
+    && (value.frequency === undefined
+      || (Array.isArray(value.frequency) && value.frequency.every((item) => typeof item === 'string')))
+    && (value.frequency !== undefined || value.schedule !== undefined)
+    && (value.schedule === undefined || isLegacySchedule(value.schedule))
+    && (value.status === undefined || value.status === 'active' || value.status === 'paused')
+    && (value.streak === undefined || typeof value.streak === 'number');
 
 export const serializeBackup = (habits: Habit[]) => {
   const backup: HabitronBackup = {
@@ -104,7 +120,7 @@ export const parseBackup = (content: string): Habit[] => {
   if (parsed.version === BACKUP_VERSION && habits.every(isHabit)) {
     return habits;
   }
-  if (parsed.version === LEGACY_BACKUP_VERSION && habits.every(isLegacyHabit)) {
+  if (LEGACY_BACKUP_VERSIONS.includes(parsed.version as number) && habits.every(isLegacyHabit)) {
     return habits.map(migrateLegacyHabit);
   }
 

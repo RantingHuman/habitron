@@ -1,20 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import { Habit, LegacyHabit, Log } from '../types/';
+import { Habit, LegacyHabit, Log, LogStatus } from '../types/';
 import { HISTORY_DAYS_TO_SHOW } from './constants';
 import {
+  anchorSchedule,
+  canLogHabitOnDate,
   getActivityCalendarData,
   getCurrentStreak,
+  isHabitPausedOn,
   isHabitScheduledForDate,
-  migrateLegacyHabit
+  migrateLegacyHabit,
+  pauseHabit,
+  resumeHabit
 } from './habitUtils';
 import { getToday } from './dateUtils';
 
-const makeLog = (date: string, completed = true): Log => ({
+const makeLog = (date: string, completed = true, status?: LogStatus): Log => ({
   id: `log-${date}`,
   timestamp: Date.parse(`${date}T12:00:00Z`),
   date,
   type: 'manual',
-  completed
+  completed,
+  ...(status && { status })
 });
 
 const makeHabit = (overrides: Partial<Habit> = {}): Habit => ({
@@ -22,6 +28,7 @@ const makeHabit = (overrides: Partial<Habit> = {}): Habit => ({
   name: 'Test habit',
   description: '',
   schedule: { type: 'daily' },
+  pauses: [],
   startDate: '2026-09-19',
   completionHistory: [],
   ...overrides
@@ -35,23 +42,192 @@ describe('habit scheduling', () => {
     expect(isHabitScheduledForDate(habit, '2026-09-22')).toBe(false);
   });
 
-  it('supports interval schedules anchored at the habit start date', () => {
+  it('supports interval schedules counted from their anchor date', () => {
     const habit = makeHabit({
-      schedule: { type: 'interval', intervalDays: 2 }
+      schedule: { type: 'interval', intervalDays: 2, anchorDate: '2026-09-20' }
     });
 
-    expect(isHabitScheduledForDate(habit, '2026-09-19')).toBe(true);
-    expect(isHabitScheduledForDate(habit, '2026-09-20')).toBe(false);
-    expect(isHabitScheduledForDate(habit, '2026-09-21')).toBe(true);
-    expect(isHabitScheduledForDate(habit, '2026-09-18')).toBe(false);
+    expect(isHabitScheduledForDate(habit, '2026-09-19')).toBe(false);
+    expect(isHabitScheduledForDate(habit, '2026-09-20')).toBe(true);
+    expect(isHabitScheduledForDate(habit, '2026-09-21')).toBe(false);
+    expect(isHabitScheduledForDate(habit, '2026-09-22')).toBe(true);
   });
 
+  it('extends interval schedules backwards from the anchor', () => {
+    const habit = makeHabit({
+      startDate: '2026-09-01',
+      schedule: { type: 'interval', intervalDays: 3, anchorDate: '2026-09-20' }
+    });
+
+    expect(isHabitScheduledForDate(habit, '2026-09-17')).toBe(true);
+    expect(isHabitScheduledForDate(habit, '2026-09-18')).toBe(false);
+    expect(isHabitScheduledForDate(habit, '2026-09-19')).toBe(false);
+  });
+
+  it('is not due before the start date but can still be logged then', () => {
+    const habit = makeHabit();
+
+    expect(isHabitScheduledForDate(habit, '2026-09-18')).toBe(false);
+    expect(canLogHabitOnDate(habit, '2026-09-18')).toBe(true);
+  });
+
+  it('cannot be logged on days that are paused or off-schedule', () => {
+    const habit = makeHabit({
+      schedule: { type: 'weekdays', days: ['monday', 'wednesday'] },
+      pauses: [{ start: '2026-09-23' }]
+    });
+
+    expect(canLogHabitOnDate(habit, '2026-09-21')).toBe(true);
+    expect(canLogHabitOnDate(habit, '2026-09-22')).toBe(false);
+    expect(canLogHabitOnDate(habit, '2026-09-23')).toBe(false);
+  });
+});
+
+describe('interval anchors', () => {
+  const interval = (intervalDays: number, anchorDate = '2026-09-01') =>
+    ({ type: 'interval', intervalDays, anchorDate }) as const;
+
+  it('keeps the anchor when the interval is unchanged', () => {
+    expect(anchorSchedule(interval(3, 'ignored'), interval(3), '2026-09-22'))
+      .toEqual(interval(3, '2026-09-01'));
+  });
+
+  it('restarts the pattern today when the interval changes or is new', () => {
+    expect(anchorSchedule(interval(4, 'ignored'), interval(3), '2026-09-22'))
+      .toEqual(interval(4, '2026-09-22'));
+    expect(anchorSchedule(interval(3, 'ignored'), { type: 'daily' }, '2026-09-22'))
+      .toEqual(interval(3, '2026-09-22'));
+    expect(anchorSchedule(interval(3, 'ignored'), undefined, '2026-09-22'))
+      .toEqual(interval(3, '2026-09-22'));
+  });
+
+  it('leaves other schedule types unchanged', () => {
+    expect(anchorSchedule({ type: 'daily' }, interval(3), '2026-09-22')).toEqual({ type: 'daily' });
+  });
+});
+
+describe('pausing', () => {
+  it('only pauses days from the pause onwards', () => {
+    const habit = pauseHabit(makeHabit(), '2026-09-22');
+
+    expect(habit.pauses).toEqual([{ start: '2026-09-22' }]);
+    expect(isHabitScheduledForDate(habit, '2026-09-21')).toBe(true);
+    expect(isHabitScheduledForDate(habit, '2026-09-22')).toBe(false);
+    expect(isHabitScheduledForDate(habit, '2026-09-30')).toBe(false);
+  });
+
+  it('closes the pause on resume so later days are due again', () => {
+    const habit = resumeHabit(pauseHabit(makeHabit(), '2026-09-22'), '2026-09-25');
+
+    expect(habit.pauses).toEqual([{ start: '2026-09-22', end: '2026-09-25' }]);
+    expect(isHabitPausedOn(habit, '2026-09-24')).toBe(true);
+    expect(isHabitPausedOn(habit, '2026-09-25')).toBe(false);
+    expect(isHabitScheduledForDate(habit, '2026-09-25')).toBe(true);
+  });
+
+  it('leaves no pause behind when paused and resumed on the same day', () => {
+    const habit = resumeHabit(pauseHabit(makeHabit(), '2026-09-22'), '2026-09-22');
+
+    expect(habit.pauses).toEqual([]);
+  });
+
+  it('continues the earlier pause when paused again on the day it was resumed', () => {
+    const resumed = resumeHabit(pauseHabit(makeHabit(), '2026-09-22'), '2026-09-25');
+
+    expect(pauseHabit(resumed, '2026-09-25').pauses).toEqual([{ start: '2026-09-22' }]);
+  });
+
+  it('ignores a pause while already paused', () => {
+    const habit = pauseHabit(makeHabit(), '2026-09-22');
+
+    expect(pauseHabit(habit, '2026-09-23')).toBe(habit);
+  });
+});
+
+describe('current streaks', () => {
+  it('counts completed daily dates before an unfinished current day', () => {
+    const habit = makeHabit({
+      completionHistory: [
+        makeLog('2026-09-20'),
+        makeLog('2026-09-21')
+      ]
+    });
+
+    expect(getCurrentStreak(habit, '2026-09-22')).toBe(2);
+  });
+
+  it('includes the current day once it is completed', () => {
+    const habit = makeHabit({
+      completionHistory: [makeLog('2026-09-21'), makeLog('2026-09-22')]
+    });
+
+    expect(getCurrentStreak(habit, '2026-09-22')).toBe(2);
+  });
+
+  it('skips non-scheduled weekdays when calculating a streak', () => {
+    const habit = makeHabit({
+      schedule: { type: 'weekdays', days: ['monday', 'wednesday'] },
+      completionHistory: [makeLog('2026-09-21')]
+    });
+
+    expect(getCurrentStreak(habit, '2026-09-22')).toBe(1);
+  });
+
+  it('keeps the streak through skipped days without counting them', () => {
+    const habit = makeHabit({
+      completionHistory: [
+        makeLog('2026-09-19'),
+        makeLog('2026-09-20', false, 'skipped'),
+        makeLog('2026-09-21')
+      ]
+    });
+
+    expect(getCurrentStreak(habit, '2026-09-22')).toBe(2);
+  });
+
+  it('keeps the streak when the current day is skipped', () => {
+    const habit = makeHabit({
+      completionHistory: [makeLog('2026-09-21'), makeLog('2026-09-22', false, 'skipped')]
+    });
+
+    expect(getCurrentStreak(habit, '2026-09-22')).toBe(1);
+  });
+
+  it('ends the streak at a missed or unlogged earlier day', () => {
+    const missed = makeHabit({
+      completionHistory: [makeLog('2026-09-19'), makeLog('2026-09-20', false), makeLog('2026-09-21')]
+    });
+    const unlogged = makeHabit({
+      completionHistory: [makeLog('2026-09-19'), makeLog('2026-09-21')]
+    });
+
+    expect(getCurrentStreak(missed, '2026-09-22')).toBe(1);
+    expect(getCurrentStreak(unlogged, '2026-09-22')).toBe(1);
+  });
+
+  it('ends the streak when the current day is marked missed', () => {
+    const habit = makeHabit({
+      completionHistory: [makeLog('2026-09-21'), makeLog('2026-09-22', false)]
+    });
+
+    expect(getCurrentStreak(habit, '2026-09-22')).toBe(0);
+  });
+
+  it('keeps the streak across a pause and while paused', () => {
+    const habit = makeHabit({
+      pauses: [{ start: '2026-09-21', end: '2026-09-24' }],
+      completionHistory: [makeLog('2026-09-19'), makeLog('2026-09-20'), makeLog('2026-09-24')]
+    });
+
+    expect(getCurrentStreak(habit, '2026-09-22')).toBe(2);
+    expect(getCurrentStreak(habit, '2026-09-24')).toBe(3);
+  });
 });
 
 describe('legacy habit migration', () => {
   const makeLegacyHabit = (overrides: Partial<LegacyHabit> = {}): LegacyHabit => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { schedule, ...habit } = makeHabit();
+    const { schedule, pauses, ...habit } = makeHabit();
     return { ...habit, frequency: [], streak: 3, ...overrides };
   };
 
@@ -73,10 +249,9 @@ describe('legacy habit migration', () => {
       }]
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { frequency, streak, ...rest } = legacyHabit;
-    expect(frequency).toEqual([]);
-    expect(streak).toBe(0);
-    expect(migrateLegacyHabit(legacyHabit)).toEqual({ ...rest, schedule: { type: 'daily' } });
+    expect(migrateLegacyHabit(legacyHabit)).toEqual({ ...rest, schedule: { type: 'daily' }, pauses: [] });
   });
 
   it('treats an empty or daily legacy frequency as daily', () => {
@@ -93,35 +268,36 @@ describe('legacy habit migration', () => {
     expect(habit).not.toHaveProperty('streak');
   });
 
-  it('keeps an existing schedule over the legacy frequency', () => {
+  it('anchors legacy interval schedules at the start date', () => {
     const habit = migrateLegacyHabit(makeLegacyHabit({
       frequency: [],
       schedule: { type: 'interval', intervalDays: 3 }
     }));
 
-    expect(habit.schedule).toEqual({ type: 'interval', intervalDays: 3 });
-  });
-});
-
-describe('current streaks', () => {
-  it('counts completed daily dates before an unfinished current day', () => {
-    const habit = makeHabit({
-      completionHistory: [
-        makeLog('2026-09-20'),
-        makeLog('2026-09-21')
-      ]
-    });
-
-    expect(getCurrentStreak(habit, '2026-09-22')).toBe(2);
+    expect(habit.schedule).toEqual({ type: 'interval', intervalDays: 3, anchorDate: '2026-09-19' });
   });
 
-  it('skips non-scheduled weekdays when calculating a streak', () => {
-    const habit = makeHabit({
-      schedule: { type: 'weekdays', days: ['monday', 'wednesday'] },
-      completionHistory: [makeLog('2026-09-21')]
-    });
+  it('turns a paused status into a pause starting after the last logged day', () => {
+    const habit = migrateLegacyHabit(makeLegacyHabit({
+      status: 'paused',
+      completionHistory: [makeLog('2026-09-21'), makeLog('2026-09-20')]
+    }));
 
-    expect(getCurrentStreak(habit, '2026-09-22')).toBe(1);
+    expect(habit.pauses).toEqual([{ start: '2026-09-22' }]);
+    expect(habit).not.toHaveProperty('status');
+  });
+
+  it('starts a legacy pause at the start date when nothing was logged', () => {
+    const habit = migrateLegacyHabit(makeLegacyHabit({ status: 'paused' }));
+
+    expect(habit.pauses).toEqual([{ start: '2026-09-19' }]);
+  });
+
+  it('drops an active status without adding a pause', () => {
+    const habit = migrateLegacyHabit(makeLegacyHabit({ status: 'active' }));
+
+    expect(habit.pauses).toEqual([]);
+    expect(habit).not.toHaveProperty('status');
   });
 });
 
