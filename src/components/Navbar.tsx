@@ -19,7 +19,8 @@ const Navbar = () => {
             </li>
             <li>
               <NavLink to={ROUTES.SETTINGS} aria-label='Settings'>
-                ⚙
+                {/* U+FE0E asks for the text glyph; iOS otherwise draws a colour emoji */}
+                {'\u2699\uFE0E'}
               </NavLink>
             </li>
             <li>

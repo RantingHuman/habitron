@@ -45,3 +45,7 @@ export const getUpcomingReminders = (
     }).flat())
     .sort((a, b) => a.at.getTime() - b.at.getTime())
     .slice(0, limit);
+// The iOS notification plugin (2.4.0) parses the scheduled date's UTC timestamp as local time, which
+// fires reminders off by the timezone offset. Shifting by the offset makes the digits it reads local.
+export const toIosNotificationDate = (date: Date) =>
+  new Date(date.getTime() - date.getTimezoneOffset() * 60_000);

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import {
-  cancelAll,
+  cancel,
   isPermissionGranted,
   requestPermission,
   Schedule,
@@ -9,12 +9,21 @@ import {
 import { useHabitronStore } from '../stores';
 import { Habit } from '../types/';
 import { getToday } from '../utils/dateUtils';
-import { getUpcomingReminders, isReminderDue } from '../utils/reminderUtils';
-import { isMobileRuntime, isTauriRuntime } from '../utils/platform';
+import {
+  getUpcomingReminders,
+  isReminderDue,
+  MAX_PENDING_REMINDERS,
+  toIosNotificationDate
+} from '../utils/reminderUtils';
+import { isIosRuntime, isMobileRuntime, isTauriRuntime } from '../utils/platform';
 
 const notifiedReminders = new Set<string>();
 const RESCHEDULE_DELAY_MS = 1_000;
 const REMINDER_BODY = 'Keep your habit going today.';
+
+// Reminders are always scheduled with ids 1..MAX_PENDING_REMINDERS. cancelAll() is not used because
+// the plugin's iOS side rejects it (it requires a list of ids), so cancel that id range instead.
+const SCHEDULED_REMINDER_IDS = Array.from({ length: MAX_PENDING_REMINDERS }, (_, index) => index + 1);
 
 const ensurePermission = async () =>
   await isPermissionGranted() || await requestPermission() === 'granted';
@@ -23,14 +32,16 @@ const ensurePermission = async () =>
 // Everything is cancelled and rescheduled on each change, so completed or paused days drop out.
 const scheduleNativeReminders = async (habits: Habit[]) => {
   const reminders = getUpcomingReminders(habits);
-  await cancelAll();
+  await cancel(SCHEDULED_REMINDER_IDS);
   if (reminders.length === 0 || !await ensurePermission()) return;
 
+  const isIos = isIosRuntime();
+
   reminders.forEach(({ habit, at }, index) => sendNotification({
-    id: index + 1,
+    id: SCHEDULED_REMINDER_IDS[index],
     title: `${habit.name} reminder`,
     body: REMINDER_BODY,
-    schedule: Schedule.at(at)
+    schedule: Schedule.at(isIos ? toIosNotificationDate(at) : at)
   }));
 };
 

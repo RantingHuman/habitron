@@ -6,3 +6,5 @@ export const isTauriRuntime = () =>
 // Synchronous: the OS plugin injects the platform into the page at startup
 export const isMobileRuntime = () =>
   isTauriRuntime() && ['ios', 'android'].includes(platform());
+
+export const isIosRuntime = () => isTauriRuntime() && platform() === 'ios';

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createHabit, createLog } from './habitUtils';
-import { getUpcomingReminders, isReminderDue, isValidReminderTime } from './reminderUtils';
+import { getUpcomingReminders, isReminderDue, isValidReminderTime, toIosNotificationDate } from './reminderUtils';
 
 const makeReminderHabit = () => {
   const habit = createHabit('Read', '', { type: 'daily' }, { enabled: true, time: '09:00' });
@@ -70,5 +70,13 @@ describe('upcoming reminders', () => {
     habit.startDate = '2026-09-23';
 
     expect(getUpcomingReminders([habit], now, 14, 5)).toHaveLength(5);
+  });
+});
+
+describe('iOS notification dates', () => {
+  it('sends the local wall-clock time in the UTC digits the plugin reads as local', () => {
+    const at = new Date(2026, 9, 9, 18, 30);
+
+    expect(toIosNotificationDate(at).toISOString()).toBe('2026-10-09T18:30:00.000Z');
   });
 });
