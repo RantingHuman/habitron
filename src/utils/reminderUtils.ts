@@ -1,6 +1,6 @@
 import { addDays, format, parse } from 'date-fns';
 import { Habit } from '../types/';
-import { getLogStatus, isHabitScheduledForDate } from './habitUtils';
+import { getCheckIn, isDueDay } from './habitUtils';
 import { DATE_FORMAT_FULL } from './constants';
 
 export const isValidReminderTime = (time: string) =>
@@ -9,12 +9,9 @@ export const isValidReminderTime = (time: string) =>
 const hasValidReminder = (habit: Habit) =>
   !!habit.reminder?.enabled && isValidReminderTime(habit.reminder.time);
 
-const needsReminderOn = (habit: Habit, date: string) => {
-  if (!isHabitScheduledForDate(habit, date)) return false;
-
-  const log = habit.completionHistory.find((entry) => entry.date === date);
-  return getLogStatus(log) === 'unlogged';
-};
+// A due day that is not yet done or skipped
+const needsReminderOn = (habit: Habit, date: string) =>
+  isDueDay(habit, date) && !getCheckIn(habit, date);
 
 export const isReminderDue = (habit: Habit, now: Date = new Date()) =>
   hasValidReminder(habit)

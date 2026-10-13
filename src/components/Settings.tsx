@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Card from './Card';
 import Button from './buttons/Button';
+import ArchivedHabits from './ArchivedHabits';
 import DataBackup from './DataBackup';
 import ConfirmationDialog from './dialogs/ConfirmationDialog';
 import { useHabitronStore } from '../stores';
@@ -16,6 +17,9 @@ const Settings = () => {
 
   return (
     <>
+      <Card header='Archived habits'>
+        <ArchivedHabits />
+      </Card>
       <Card header='Backup'>
         <p className='mb-4 text-sm'>Save your habits and history to a file, or restore them from one.</p>
         <DataBackup />

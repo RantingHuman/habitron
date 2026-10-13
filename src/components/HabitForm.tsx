@@ -3,13 +3,12 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import FormInput from './form-elements/FormInput';
 import Button from './buttons/Button';
-import { anchorSchedule, createHabit } from '../utils/habitUtils';
+import { changeSchedule, createHabit, getCurrentRules } from '../utils/habitUtils';
 import { VALIDATION_MESSAGES, WEEKDAY_FREQUENCIES } from '../utils/constants';
 import useHabitronNavigation from '../hooks/useHabitronNavigation';
 import ValidationError from './dialogs/ValidationError';
 import { HabitSchedule, Weekday } from '../types/';
 import { isValidReminderTime } from '../utils/reminderUtils';
-import { getToday } from '../utils/dateUtils';
 
 const HabitForm = () => {
   const { id } = useParams();
@@ -18,7 +17,9 @@ const HabitForm = () => {
   const habit = getHabit(id);
   const [name, setName] = useState(habit?.name || '');
   const [description, setDescription] = useState(habit?.description || '');
-  const [schedule, setSchedule] = useState<HabitSchedule>(habit?.schedule ?? { type: 'daily' });
+  const [schedule, setSchedule] = useState<HabitSchedule>(
+    habit ? getCurrentRules(habit).schedule : { type: 'daily' }
+  );
   const [reminderEnabled, setReminderEnabled] = useState(habit?.reminder?.enabled ?? false);
   const [reminderTime, setReminderTime] = useState(habit?.reminder?.time ?? '09:00');
 
@@ -36,7 +37,7 @@ const HabitForm = () => {
     } else {
       setSchedule((currentSchedule) => currentSchedule.type === type
         ? currentSchedule
-        : { type, intervalDays: 2, anchorDate: getToday() });
+        : { type, intervalDays: 2 });
     }
   };
 
@@ -64,19 +65,18 @@ const HabitForm = () => {
     e.preventDefault();
     if(!validateForm()) return;
     if (habit) {
-      updateHabit({
+      updateHabit(changeSchedule({
         ...habit,
         name,
         description,
-        schedule: anchorSchedule(schedule, habit.schedule),
         reminder: reminderEnabled ? { enabled: true, time: reminderTime } : undefined
-      });
+      }, schedule));
       navigateToViewHabit(habit.id);
     } else {
       addHabit(createHabit(
         name,
         description,
-        anchorSchedule(schedule),
+        schedule,
         reminderEnabled ? { enabled: true, time: reminderTime } : undefined
       ));
       navigateToHome();

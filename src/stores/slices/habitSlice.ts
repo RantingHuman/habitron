@@ -1,6 +1,6 @@
 import { StateCreator } from 'zustand';
-import { Habit, Log, LogStatus } from '../../types/';
-import { createLog, getLogStatus } from '../../utils/habitUtils';
+import { CheckInStatus, Habit } from '../../types/';
+import { setCheckIn } from '../../utils/habitUtils';
 
 export interface HabitSlice {
   habits: Habit[];
@@ -8,10 +8,8 @@ export interface HabitSlice {
   removeHabit: (id: string) => void;
   updateHabit: (habit: Habit) => void;
   replaceHabits: (habits: Habit[]) => void;
-  setHabitLog: (habitId: string, date: string, status: LogStatus | null) => void;
+  setCheckIn: (habitId: string, date: string, status: CheckInStatus | null) => void;
   getHabit: (id?: string) => Habit | undefined;
-  getLog: (habitId: string, date: string) => Log | undefined;
-  toggleHabitCompletion: (habit: Habit, log: Log) => void;
   resetHabits: () => void;
 }
 
@@ -19,30 +17,6 @@ const addHabit = (habits: Habit[], habit: Habit): Habit[] => [...habits, habit];
 const removeHabit = (habits: Habit[], id: string): Habit[] => habits.filter((habit) => habit.id !== id);
 const updateHabit = (habits: Habit[], habit: Habit): Habit[] => habits.map((h) => h.id === habit.id ? habit : h);
 const getHabit = (habits: Habit[], id: string): Habit | undefined => habits.find((habit) => habit.id === id);
-const getLog = (habits: Habit[], habitId: string, date: string): Log | undefined => {
-  const habit = getHabit(habits, habitId);
-  if (!habit) return;
-  return habit.completionHistory.find((log: Log) => log.date === date);
-}
-const setHabitLogOnHabit = (habit: Habit, date: string, status: LogStatus | null): Habit => {
-  const completionHistory = (habit.completionHistory || [])
-    .filter((existingLog) => existingLog.date !== date);
-
-  if (!status) return { ...habit, completionHistory };
-
-  const existingLog = habit.completionHistory.find((log) => log.date === date);
-  const nextLog = existingLog
-    ? { ...existingLog, completed: status === 'completed', status }
-    : { ...createLog(date, 'manual', status === 'completed'), status };
-
-  // Logging a day before the habit started backfills history, so the habit now starts on that day
-  const startDate = date < habit.startDate ? date : habit.startDate;
-  return { ...habit, startDate, completionHistory: [...completionHistory, nextLog] };
-}
-const toggleHabitCompletion = (habit: Habit, log: Log): Habit => {
-  const nextStatus = getLogStatus(log) === 'completed' ? null : 'completed';
-  return setHabitLogOnHabit(habit, log.date, nextStatus);
-}
 
 export const createHabitSlice: StateCreator<HabitSlice> = (set, get) => ({
   habits: [],
@@ -53,23 +27,13 @@ export const createHabitSlice: StateCreator<HabitSlice> = (set, get) => ({
   replaceHabits: (habits) => set(() => ({
     habits: habits.map((habit) => ({
       ...habit,
-      completionHistory: [...habit.completionHistory]
+      checkIns: [...habit.checkIns]
     }))
   })),
-  setHabitLog: (habitId, date, status) => set((state) => ({
+  setCheckIn: (habitId, date, status) => set((state) => ({
     habits: state.habits.map((habit) => habit.id === habitId
-      ? setHabitLogOnHabit(habit, date, status)
+      ? setCheckIn(habit, date, status)
       : habit)
   })),
   getHabit: (id) => id ? getHabit(get().habits, id) : undefined,
-  getLog: (habitId, date) => getLog(get().habits, habitId, date),
-  toggleHabitCompletion: (habit, log) => set((state) => {
-    const currentHabit = getHabit(state.habits, habit.id);
-    if (!currentHabit) return { habits: state.habits };
-
-    const currentLog = getLog(state.habits, habit.id, log.date) || log;
-    return {
-      habits: updateHabit(state.habits, toggleHabitCompletion(currentHabit, currentLog))
-    };
-  }),
 });

@@ -1,12 +1,10 @@
 export {
+  CheckIn,
+  CheckInStatus,
   Habit,
   HabitPause,
   HabitReminder,
+  HabitRules,
   HabitSchedule,
-  HabitStatus,
-  LegacyHabit,
-  LegacyHabitSchedule,
-  Log,
-  LogStatus,
   Weekday
 } from './configs/';

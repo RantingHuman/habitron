@@ -6,7 +6,6 @@ export const HOME_GRID_COLUMNS = 'grid grid-cols-7 sm:grid-cols-[minmax(0,1fr)_r
 export const DATE_FORMAT_MON_DAY = 'MMM dd';
 export const DATE_FORMAT_FULL = 'yyyy-MM-dd';
 export const HISTORY_DAYS_TO_SHOW = 99;
-export const LEGACY_DAILY_FREQUENCY = 'daily';
 export const WEEKDAY_FREQUENCIES = [
   { value: 'monday', label: 'Mon' },
   { value: 'tuesday', label: 'Tue' },
@@ -23,6 +22,9 @@ export const CALENDAR_THEME_COLORS = {
   DARK_ACTIVE: 'rgb(29, 78, 216)',
   DARK_INACTIVE: 'rgb(51, 65, 85)'
 }
+
+export const DELETE_HABIT_MESSAGE =
+  'This permanently deletes the habit and all its check-ins. To stop tracking it but keep its history, archive it instead.';
 
 export const VALIDATION_MESSAGES = {
   HABIT_NAME_REQUIRED: 'Please enter a habit name.',

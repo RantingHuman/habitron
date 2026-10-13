@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createHabit, createLog } from './habitUtils';
+import { createHabit } from './habitUtils';
 import { getUpcomingReminders, isReminderDue, isValidReminderTime, toIosNotificationDate } from './reminderUtils';
 
 const makeReminderHabit = () => {
@@ -16,13 +16,13 @@ describe('habit reminders', () => {
     expect(isReminderDue(habit, new Date(2026, 8, 23, 9, 0))).toBe(true);
   });
 
-  it('does not remind after a completion, skip, or pause', () => {
+  it('does not remind after a done or skipped check-in, or while paused', () => {
     const completedHabit = makeReminderHabit();
-    completedHabit.completionHistory = [createLog('2026-09-23', 'manual', true)];
+    completedHabit.checkIns = [{ date: '2026-09-23', status: 'done' }];
     expect(isReminderDue(completedHabit, new Date(2026, 8, 23, 10, 0))).toBe(false);
 
     const skippedHabit = makeReminderHabit();
-    skippedHabit.completionHistory = [{ ...createLog('2026-09-23'), status: 'skipped' }];
+    skippedHabit.checkIns = [{ date: '2026-09-23', status: 'skipped' }];
     expect(isReminderDue(skippedHabit, new Date(2026, 8, 23, 10, 0))).toBe(false);
 
     const pausedHabit = makeReminderHabit();
@@ -53,11 +53,11 @@ describe('upcoming reminders', () => {
     ]);
   });
 
-  it('leaves out logged, unscheduled, paused, and reminder-less days', () => {
+  it('leaves out checked-in, not due, paused, and reminder-less days', () => {
     const habit = createHabit('Stretch', '', { type: 'weekdays', days: ['wednesday', 'thursday', 'saturday'] },
       { enabled: true, time: '20:00' });
     habit.startDate = '2026-09-23';
-    habit.completionHistory = [createLog('2026-09-23', 'manual', true)];
+    habit.checkIns = [{ date: '2026-09-23', status: 'done' }];
     habit.pauses = [{ start: '2026-09-26' }];
     const noReminder = createHabit('Floss', '');
 

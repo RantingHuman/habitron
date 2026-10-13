@@ -3,8 +3,6 @@ import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { create } from 'zustand';
 import { createHabitSlice, type HabitSlice } from "./slices/habitSlice";
 import { createSystemSlice, type SystemSlice } from "./slices/systemSlice";
-import { Habit, LegacyHabit } from '../types/';
-import { migrateLegacyHabit } from '../utils/habitUtils';
 import { isTauriRuntime } from '../utils/platform';
 
 interface PersistenceState {
@@ -125,7 +123,9 @@ export const useHabitronStore = create<HabitronState>()(
     }),
     {
       name: 'habitron',
-      version: 3,
+      // Bump when the persisted shape changes. Data saved under another version is discarded, not
+      // migrated, because the app has no production users yet
+      version: 4,
       storage: createJSONStorage(() => getStorage(
         isTauriRuntime() ? createTauriBackend(TAURI_STORE_PATH) : localStorageBackend,
         persistenceCallbacks
@@ -134,15 +134,6 @@ export const useHabitronStore = create<HabitronState>()(
         habits: state.habits,
         darkMode: state.darkMode
       }),
-      migrate: (persistedState, version) => {
-        const state = persistedState as { habits?: Array<Habit | LegacyHabit>; darkMode?: boolean };
-        const habits = state.habits ?? [];
-        return {
-          // Version 1 stored `frequency` and `streak`; version 2 a paused `status` and unanchored intervals
-          habits: version < 3 ? habits.map(migrateLegacyHabit) : habits as Habit[],
-          darkMode: state.darkMode ?? false
-        };
-      },
       onRehydrateStorage: () => {
         usePersistenceStore.getState().beginHydration();
         return (_state, error) => {

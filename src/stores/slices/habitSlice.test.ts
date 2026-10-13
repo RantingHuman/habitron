@@ -1,82 +1,45 @@
 import { create } from 'zustand';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { HabitSlice, createHabitSlice } from './habitSlice';
-import { createHabit, createLog } from '../../utils/habitUtils';
+import { createHabit } from '../../utils/habitUtils';
 
 const store = create<HabitSlice>()(createHabitSlice);
 
-describe('habit completion updates', () => {
+describe('habit check-in updates', () => {
   beforeEach(() => {
     store.setState({ habits: [] });
   });
 
-  it('toggles an existing log without mutating the stored habit', () => {
-    const log = createLog('2026-09-21', 'manual', true);
-    const storedHabit = { ...createHabit('Read', ''), completionHistory: [log] };
-    store.setState({ habits: [storedHabit] });
-
-    store.getState().toggleHabitCompletion(
-      { ...storedHabit, completionHistory: [...storedHabit.completionHistory] },
-      { ...log }
-    );
-
-    const updatedHabit = store.getState().habits[0];
-    expect(updatedHabit.completionHistory).toHaveLength(0);
-    expect(updatedHabit.completionHistory).not.toBe(storedHabit.completionHistory);
-    expect(storedHabit.completionHistory[0].completed).toBe(true);
-  });
-
-  it('adds a newly completed date as one log', () => {
-    const habit = createHabit('Exercise', '');
-    const log = createLog('2026-09-22');
-    store.setState({ habits: [habit] });
-
-    store.getState().toggleHabitCompletion(habit, log);
-
-    const updatedHabit = store.getState().habits[0];
-    expect(updatedHabit.completionHistory).toHaveLength(1);
-    expect(updatedHabit.completionHistory[0]).toMatchObject({
-      date: '2026-09-22',
-      completed: true
-    });
-  });
-
-  it('sets and clears explicit skipped and missed states', () => {
+  it('sets, replaces, and clears a check-in without mutating the stored habit', () => {
     const habit = createHabit('Meditate', '');
     store.setState({ habits: [habit] });
 
-    store.getState().setHabitLog(habit.id, '2026-09-22', 'skipped');
-    expect(store.getState().habits[0].completionHistory[0]).toMatchObject({
-      date: '2026-09-22',
-      completed: false,
-      status: 'skipped'
-    });
+    store.getState().setCheckIn(habit.id, '2026-09-22', 'done');
+    store.getState().setCheckIn(habit.id, '2026-09-22', 'skipped');
+    expect(store.getState().habits[0].checkIns).toEqual([{ date: '2026-09-22', status: 'skipped' }]);
+    expect(habit.checkIns).toEqual([]);
 
-    store.getState().setHabitLog(habit.id, '2026-09-22', 'missed');
-    expect(store.getState().habits[0].completionHistory[0].status).toBe('missed');
-
-    store.getState().setHabitLog(habit.id, '2026-09-22', null);
-    expect(store.getState().habits[0].completionHistory).toHaveLength(0);
+    store.getState().setCheckIn(habit.id, '2026-09-22', null);
+    expect(store.getState().habits[0].checkIns).toEqual([]);
   });
 
-  it('moves the start date back when an earlier day is logged', () => {
+  it('moves the start date back when an earlier day is checked in', () => {
     const habit = { ...createHabit('Journal', ''), startDate: '2026-09-22' };
     store.setState({ habits: [habit] });
 
-    store.getState().setHabitLog(habit.id, '2026-09-20', 'completed');
+    store.getState().setCheckIn(habit.id, '2026-09-20', 'done');
     expect(store.getState().habits[0].startDate).toBe('2026-09-20');
 
-    store.getState().setHabitLog(habit.id, '2026-09-21', 'skipped');
-    store.getState().setHabitLog(habit.id, '2026-09-20', null);
+    store.getState().setCheckIn(habit.id, '2026-09-21', 'skipped');
+    store.getState().setCheckIn(habit.id, '2026-09-20', null);
     expect(store.getState().habits[0].startDate).toBe('2026-09-20');
   });
 
-  it('replaces habits with cloned completion histories', () => {
+  it('replaces habits with cloned check-ins', () => {
     const habit = createHabit('Write', '');
     store.getState().replaceHabits([habit]);
 
     expect(store.getState().habits).toHaveLength(1);
-    expect(store.getState().habits[0].completionHistory)
-      .not.toBe(habit.completionHistory);
+    expect(store.getState().habits[0].checkIns).not.toBe(habit.checkIns);
   });
 });

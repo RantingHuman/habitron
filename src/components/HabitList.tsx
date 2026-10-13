@@ -6,12 +6,13 @@ import { NavLink } from 'react-router-dom';
 import { parseISO, subWeeks } from 'date-fns';
 import { getLastNDates, getToday } from '../utils/dateUtils';
 import { HOME_DAYS_TO_SHOW } from '../utils/constants';
+import { isHabitArchived } from '../utils/habitUtils';
 import { TouchEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 const SWIPE_THRESHOLD_PX = 50;
 
 const HabitList = () => {
-  const { habits } = useHabitronStore();
+  const habits = useHabitronStore((state) => state.habits).filter((habit) => !isHabitArchived(habit));
   const [today, setToday] = useState(() => getToday());
   // 0 shows the week ending today, 1 the week before, and so on
   const [weeksBack, setWeeksBack] = useState(0);

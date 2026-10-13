@@ -1,8 +1,3 @@
-// interface for the habit
-import { Log } from './log';
-
-export type HabitStatus = 'active' | 'paused';
-
 export interface HabitReminder {
     enabled: boolean;
     time: string;
@@ -17,11 +12,19 @@ export type Weekday =
     | 'saturday'
     | 'sunday';
 
-// Interval habits are due every `intervalDays` days, counted from `anchorDate` in both directions
+// Interval habits are due every `intervalDays` days, counted in both directions from the day
+// the rules containing the schedule took effect
 export type HabitSchedule =
     | { type: 'daily' }
     | { type: 'weekdays'; days: Weekday[] }
-    | { type: 'interval'; intervalDays: number; anchorDate: string };
+    | { type: 'interval'; intervalDays: number };
+
+// One version of a habit's rules; it applies from `effectiveFrom` until the next version.
+// The first version also applies to any days before it (see docs/adr/0001)
+export interface HabitRules {
+    effectiveFrom: string;
+    schedule: HabitSchedule;
+}
 
 // A paused period: `start` is the first paused day, `end` the day the habit resumed (not paused)
 export interface HabitPause {
@@ -29,27 +32,23 @@ export interface HabitPause {
     end?: string;
 }
 
+export type CheckInStatus = 'done' | 'skipped';
+
+export interface CheckIn {
+    date: string;
+    status: CheckInStatus;
+}
+
 export interface Habit {
     id: string;
     name: string;
     description?: string;
-    schedule: HabitSchedule;
+    // Versions in order of `effectiveFrom`, never empty
+    rules: HabitRules[];
     pauses: HabitPause[];
+    // First day the habit was archived; absent while it is in use
+    archivedOn?: string;
     reminder?: HabitReminder;
     startDate: string;
-    completionHistory: Log[];
-}
-
-export type LegacyHabitSchedule =
-    | Exclude<HabitSchedule, { type: 'interval' }>
-    | { type: 'interval'; intervalDays: number; anchorDate?: string };
-
-// Shape of habits saved by earlier versions: version 1 used `frequency` and `streak`,
-// versions 1 and 2 used a `status` flag instead of pause periods and had no interval anchor
-export interface LegacyHabit extends Omit<Habit, 'schedule' | 'pauses'> {
-    frequency?: string[];
-    streak?: number;
-    schedule?: LegacyHabitSchedule;
-    status?: HabitStatus;
-    pauses?: HabitPause[];
+    checkIns: CheckIn[];
 }
