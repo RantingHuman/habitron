@@ -1,6 +1,6 @@
 import { addDays, format, parse } from 'date-fns';
 import { Habit } from '../types/';
-import { getCheckIn, isDueDay } from './habitUtils';
+import { getCheckIn, getRulesOn, isDayDone, isDueDay, isSkipped } from './habitUtils';
 import { DATE_FORMAT_FULL } from './constants';
 
 export const isValidReminderTime = (time: string) =>
@@ -9,9 +9,13 @@ export const isValidReminderTime = (time: string) =>
 const hasValidReminder = (habit: Habit) =>
   !!habit.reminder?.enabled && isValidReminderTime(habit.reminder.time);
 
-// A due day that is not yet done or skipped
+// A due day that is not yet done or skipped. At-most habits have no reminders: their days are done
+// until the limit is passed
 const needsReminderOn = (habit: Habit, date: string) =>
-  isDueDay(habit, date) && !getCheckIn(habit, date);
+  isDueDay(habit, date)
+    && getRulesOn(habit, date).target?.direction !== 'atMost'
+    && !isDayDone(habit, date)
+    && !isSkipped(getCheckIn(habit, date));
 
 export const isReminderDue = (habit: Habit, now: Date = new Date()) =>
   hasValidReminder(habit)

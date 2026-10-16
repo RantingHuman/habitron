@@ -125,7 +125,7 @@ export const useHabitronStore = create<HabitronState>()(
       name: 'habitron',
       // Bump when the persisted shape changes. Data saved under another version is discarded, not
       // migrated, because the app has no production users yet
-      version: 4,
+      version: 5,
       storage: createJSONStorage(() => getStorage(
         isTauriRuntime() ? createTauriBackend(TAURI_STORE_PATH) : localStorageBackend,
         persistenceCallbacks

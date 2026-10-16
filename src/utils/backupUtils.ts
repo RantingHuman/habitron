@@ -1,7 +1,7 @@
-import { CheckIn, Habit, HabitPause, HabitRules, HabitSchedule, Weekday } from '../types/';
+import { CheckIn, Habit, HabitPause, HabitRules, HabitSchedule, HabitTarget, Weekday } from '../types/';
 import { WEEKDAY_FREQUENCIES } from './constants';
 
-const BACKUP_VERSION = 4;
+const BACKUP_VERSION = 5;
 
 export interface HabitronBackup {
   version: typeof BACKUP_VERSION;
@@ -42,8 +42,22 @@ const isPause = (value: unknown): value is HabitPause =>
     && isDate(value.start)
     && (value.end === undefined || (isDate(value.end) && value.end > value.start));
 
-const isCheckIn = (value: unknown): value is CheckIn =>
-  isRecord(value) && isDate(value.date) && (value.status === 'done' || value.status === 'skipped');
+const isAmount = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value) && value >= 0;
+
+// An at-least target must be above zero; "at most 0" is a valid limit
+const isTarget = (value: unknown): value is HabitTarget =>
+  isRecord(value)
+    && isAmount(value.amount)
+    && (value.direction === 'atMost' || (value.direction === 'atLeast' && value.amount > 0));
+
+// Done check-ins belong to yes/no habits and amounts to measurable habits; either can be skipped
+const isCheckIn = (value: unknown, isMeasurable: boolean): value is CheckIn => {
+  if (!isRecord(value) || !isDate(value.date)) return false;
+  if (value.status === 'skipped') return value.amount === undefined;
+  if (isMeasurable) return value.status === undefined && isAmount(value.amount);
+  return value.status === 'done' && value.amount === undefined;
+};
 
 const isReminder = (value: unknown): boolean => {
   if (!isRecord(value)) return false;
@@ -59,18 +73,28 @@ const hasValidHabitFields = (value: Record<string, unknown>) =>
     && (value.reminder === undefined || isReminder(value.reminder))
     && typeof value.startDate === 'string';
 
+// A measurable habit has a unit and a target in every version of its rules; a yes/no habit has neither
+const hasValidMeasure = (value: Record<string, unknown>, rules: HabitRules[]) => {
+  if (value.kind === 'yesNo') return value.unit === undefined && rules.every(({ target }) => target === undefined);
+  return value.kind === 'measurable'
+    && typeof value.unit === 'string'
+    && value.unit.trim() !== ''
+    && rules.every(({ target }) => isTarget(target));
+};
+
 const isHabit = (value: unknown): value is Habit =>
   isRecord(value)
     && hasValidHabitFields(value)
     && Array.isArray(value.rules)
     && value.rules.length > 0
     && value.rules.every(isRules)
+    && hasValidMeasure(value, value.rules)
     && isAscending(value.rules.map(({ effectiveFrom }) => effectiveFrom))
     && Array.isArray(value.pauses)
     && value.pauses.every(isPause)
     && (value.archivedOn === undefined || isDate(value.archivedOn))
     && Array.isArray(value.checkIns)
-    && value.checkIns.every(isCheckIn)
+    && value.checkIns.every((checkIn) => isCheckIn(checkIn, value.kind === 'measurable'))
     && new Set(value.checkIns.map(({ date }) => date)).size === value.checkIns.length;
 
 export const serializeBackup = (habits: Habit[]) => {

@@ -10,6 +10,7 @@ import useHabitronNavigation from '../hooks/useHabitronNavigation';
 import Card from './Card';
 import {
   archiveHabit,
+  getCurrentRules,
   getCurrentStreak,
   getStrengthScore,
   isHabitArchived,
@@ -20,6 +21,7 @@ import {
 } from '../utils/habitUtils';
 import { DELETE_HABIT_MESSAGE } from '../utils/constants';
 import StrengthRing from './StrengthRing';
+import { formatTarget } from '../utils/formatUtils';
 
 
 const HabitDetail = () => {
@@ -44,6 +46,7 @@ const HabitDetail = () => {
   const isArchived = habit ? isHabitArchived(habit) : false;
   const strength = habit ? getStrengthScore(habit) : 0;
   const streak = habit ? getCurrentStreak(habit) : 0;
+  const currentTarget = habit ? getCurrentRules(habit).target : undefined;
 
   const handleArchive = () => {
     if (habit) updateHabit(archiveHabit(habit));
@@ -68,6 +71,7 @@ const HabitDetail = () => {
       
         <div >{habit.description}</div>
         <div>Status: {isArchived ? 'Archived' : isPaused ? 'Paused' : 'Active'}</div>
+        {currentTarget && <div>Target: {formatTarget(currentTarget, habit.unit)} per due day</div>}
         <div className='flex items-center gap-2 my-2'>
           <StrengthRing score={strength} size={36} />
           <span>Strength: {Math.round(strength * 100)}%</span>

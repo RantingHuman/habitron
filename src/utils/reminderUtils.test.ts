@@ -36,6 +36,34 @@ describe('habit reminders', () => {
     expect(isValidReminderTime('24:00')).toBe(false);
   });
 });
+describe('measurable habit reminders', () => {
+  const makeMeasurable = (direction: 'atLeast' | 'atMost') => {
+    const habit = createHabit('Water', '', { type: 'daily' }, { enabled: true, time: '09:00' },
+      { unit: 'glasses', target: { direction, amount: 8 } });
+    habit.startDate = '2026-09-23';
+    return habit;
+  };
+
+  it('still reminds after partial progress, but not once the target is met', () => {
+    const habit = makeMeasurable('atLeast');
+
+    habit.checkIns = [{ date: '2026-09-23', amount: 5 }];
+    expect(isReminderDue(habit, new Date(2026, 8, 23, 10, 0))).toBe(true);
+
+    habit.checkIns = [{ date: '2026-09-23', amount: 8 }];
+    expect(isReminderDue(habit, new Date(2026, 8, 23, 10, 0))).toBe(false);
+  });
+
+  it('never reminds for an at-most habit, even over the limit', () => {
+    const habit = makeMeasurable('atMost');
+
+    expect(isReminderDue(habit, new Date(2026, 8, 23, 10, 0))).toBe(false);
+    habit.checkIns = [{ date: '2026-09-23', amount: 12 }];
+    expect(isReminderDue(habit, new Date(2026, 8, 23, 10, 0))).toBe(false);
+    expect(getUpcomingReminders([habit], new Date(2026, 8, 23, 8, 0), 7)).toEqual([]);
+  });
+});
+
 describe('upcoming reminders', () => {
   const now = new Date(2026, 8, 23, 10, 0);
 

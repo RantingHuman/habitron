@@ -3,11 +3,11 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import FormInput from './form-elements/FormInput';
 import Button from './buttons/Button';
-import { changeSchedule, createHabit, getCurrentRules } from '../utils/habitUtils';
+import { changeRules, createHabit, getCurrentRules } from '../utils/habitUtils';
 import { VALIDATION_MESSAGES, WEEKDAY_FREQUENCIES } from '../utils/constants';
 import useHabitronNavigation from '../hooks/useHabitronNavigation';
 import ValidationError from './dialogs/ValidationError';
-import { HabitSchedule, Weekday } from '../types/';
+import { HabitKind, HabitSchedule, HabitTarget, Weekday } from '../types/';
 import { isValidReminderTime } from '../utils/reminderUtils';
 
 const HabitForm = () => {
@@ -20,12 +20,27 @@ const HabitForm = () => {
   const [schedule, setSchedule] = useState<HabitSchedule>(
     habit ? getCurrentRules(habit).schedule : { type: 'daily' }
   );
+  const currentTarget = habit ? getCurrentRules(habit).target : undefined;
+  // The kind is chosen when the habit is created and cannot change afterwards
+  const [kind, setKind] = useState<HabitKind>(habit?.kind ?? 'yesNo');
+  const [unit, setUnit] = useState(habit?.unit ?? '');
+  const [targetDirection, setTargetDirection] = useState<HabitTarget['direction']>(currentTarget?.direction ?? 'atLeast');
+  const [targetAmount, setTargetAmount] = useState(currentTarget ? String(currentTarget.amount) : '');
   const [reminderEnabled, setReminderEnabled] = useState(habit?.reminder?.enabled ?? false);
   const [reminderTime, setReminderTime] = useState(habit?.reminder?.time ?? '09:00');
 
   const [nameErrorMessage, setNameErrorMessage] = useState('')
   const [scheduleErrorMessage, setScheduleErrorMessage] = useState('')
   const [reminderErrorMessage, setReminderErrorMessage] = useState('')
+  const [measureErrorMessage, setMeasureErrorMessage] = useState('')
+
+  const isMeasurable = kind === 'measurable';
+  // At-most habits have no reminders: their days are done until the limit is passed
+  const canHaveReminder = !(isMeasurable && targetDirection === 'atMost');
+  const target: HabitTarget | undefined = isMeasurable
+    ? { direction: targetDirection, amount: Number(targetAmount) }
+    : undefined;
+  const reminder = canHaveReminder && reminderEnabled ? { enabled: true, time: reminderTime } : undefined;
 
   const handleScheduleTypeChange = (type: HabitSchedule['type']) => {
     if (type === 'daily') {
@@ -65,19 +80,21 @@ const HabitForm = () => {
     e.preventDefault();
     if(!validateForm()) return;
     if (habit) {
-      updateHabit(changeSchedule({
+      updateHabit(changeRules({
         ...habit,
         name,
         description,
-        reminder: reminderEnabled ? { enabled: true, time: reminderTime } : undefined
-      }, schedule));
+        ...(isMeasurable && { unit: unit.trim() }),
+        reminder
+      }, { schedule, target }));
       navigateToViewHabit(habit.id);
     } else {
       addHabit(createHabit(
         name,
         description,
         schedule,
-        reminderEnabled ? { enabled: true, time: reminderTime } : undefined
+        reminder,
+        target && { unit: unit.trim(), target }
       ));
       navigateToHome();
     }
@@ -88,11 +105,19 @@ const HabitForm = () => {
     const hasValidSchedule = schedule.type === 'daily'
       || (schedule.type === 'weekdays' && schedule.days.length > 0)
       || (schedule.type === 'interval' && Number.isInteger(schedule.intervalDays) && schedule.intervalDays >= 2);
-    const hasValidReminder = !reminderEnabled || isValidReminderTime(reminderTime);
+    const hasValidReminder = !reminder || isValidReminderTime(reminderTime);
+    // An at-least target must be above zero; "at most 0" is a valid limit
+    const hasValidMeasure = !target || (
+      unit.trim() !== ''
+        && targetAmount.trim() !== ''
+        && Number.isFinite(target.amount)
+        && (target.direction === 'atLeast' ? target.amount > 0 : target.amount >= 0)
+    );
     setNameErrorMessage(hasName ? '' : VALIDATION_MESSAGES.HABIT_NAME_REQUIRED);
     setScheduleErrorMessage(hasValidSchedule ? '' : 'Choose valid schedule settings.');
     setReminderErrorMessage(hasValidReminder ? '' : 'Choose a valid reminder time.');
-    return hasName && hasValidSchedule && hasValidReminder;
+    setMeasureErrorMessage(hasValidMeasure ? '' : 'Enter a unit and a target amount.');
+    return hasName && hasValidSchedule && hasValidReminder && hasValidMeasure;
   }
 
   return (
@@ -110,6 +135,63 @@ const HabitForm = () => {
         value={description}
         onChange={(e) => setDescription(e.target.value)}
       />
+      <fieldset>
+        <legend className='font-medium'>Kind</legend>
+        {habit ? (
+          <p className='mt-1'>{isMeasurable ? 'Measurable' : 'Yes/no'} (cannot be changed)</p>
+        ) : (
+          <div className='grid gap-2 mt-1'>
+            <label className='flex items-center gap-2'>
+              <input name='habit-kind' type='radio' value='yesNo'
+                checked={kind === 'yesNo'} onChange={() => setKind('yesNo')} />
+              Yes/no: mark each day done
+            </label>
+            <label className='flex items-center gap-2'>
+              <input name='habit-kind' type='radio' value='measurable'
+                checked={kind === 'measurable'} onChange={() => setKind('measurable')} />
+              Measurable: record an amount, such as glasses or minutes
+            </label>
+          </div>
+        )}
+      </fieldset>
+      {isMeasurable && (
+        <fieldset>
+          <legend className='font-medium'>Target</legend>
+          <div className='flex flex-wrap items-center gap-2 mt-1'>
+            <select
+              name='habit-target-direction'
+              aria-label='Target direction'
+              value={targetDirection}
+              onChange={(e) => setTargetDirection(e.target.value as HabitTarget['direction'])}
+              className='rounded-md'
+            >
+              <option value='atLeast'>At least</option>
+              <option value='atMost'>At most</option>
+            </select>
+            <input
+              name='habit-target-amount'
+              aria-label='Target amount'
+              type='number'
+              inputMode='decimal'
+              min='0'
+              step='any'
+              value={targetAmount}
+              onChange={(e) => setTargetAmount(e.target.value)}
+              className='w-24 rounded-md'
+            />
+            <input
+              name='habit-unit'
+              aria-label='Unit'
+              placeholder='unit, e.g. glasses'
+              value={unit}
+              onChange={(e) => setUnit(e.target.value)}
+              className='min-w-[8rem] flex-1 rounded-md'
+            />
+          </div>
+          <p className='mt-1 text-sm'>per due day.{habit && ' A target change applies from today.'}</p>
+          {measureErrorMessage && <ValidationError message={measureErrorMessage} />}
+        </fieldset>
+      )}
       <fieldset>
         <legend className='font-medium'>Schedule</legend>
         <div className='grid gap-2 mt-1'>
@@ -178,6 +260,9 @@ const HabitForm = () => {
       </fieldset>
       <fieldset>
         <legend className='font-medium'>Reminder</legend>
+        {!canHaveReminder ? (
+          <p className='mt-1 text-sm'>At-most habits have no reminders: each day is done until you pass the limit.</p>
+        ) : (<>
         <label className='flex items-center gap-2 mt-1'>
           <input
             name='habit-reminder-enabled'
@@ -200,6 +285,7 @@ const HabitForm = () => {
           </label>
         )}
         {reminderErrorMessage && <ValidationError message={reminderErrorMessage} />}
+        </>)}
       </fieldset>
       <div className='flex justify-end gap-6 mt-4'>
         <Button name='cancel' appearance='secondary' onClick={handleCancel}>Cancel</Button>

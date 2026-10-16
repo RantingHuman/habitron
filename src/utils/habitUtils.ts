@@ -1,21 +1,30 @@
 import { addDays, differenceInCalendarDays, format, parseISO, subDays } from 'date-fns';
-import { CheckIn, CheckInStatus, Habit, HabitPause, HabitReminder, HabitRules, HabitSchedule, Weekday } from '../types/';
+import { CheckIn, CheckInValue, Habit, HabitPause, HabitReminder, HabitRules, HabitSchedule, HabitTarget, Weekday } from '../types/';
 import {v4 as uuidv4} from 'uuid';
 import { DATE_FORMAT_FULL, HISTORY_DAYS_TO_SHOW } from './constants';
 import { getToday, getLastNDates } from './dateUtils';
+
+// What makes a habit measurable; without it the habit is a yes/no habit
+export interface HabitMeasure {
+  unit: string;
+  target: HabitTarget;
+}
 
 export const createHabit = (
   name: string,
   description: string,
   schedule: HabitSchedule = { type: 'daily' },
-  reminder?: HabitReminder
+  reminder?: HabitReminder,
+  measure?: HabitMeasure
 ) => {
   const today = getToday();
   const newHabit: Habit = {
     id: uuidv4(),
     name,
     description,
-    rules: [{ effectiveFrom: today, schedule }],
+    kind: measure ? 'measurable' : 'yesNo',
+    ...(measure && { unit: measure.unit }),
+    rules: [{ effectiveFrom: today, schedule, ...(measure && { target: measure.target }) }],
     pauses: [],
     reminder,
     startDate: today,
@@ -27,9 +36,11 @@ export const createHabit = (
 
 // Rules
 
+const getRulesIndexOn = (habit: Habit, date: string) =>
+  habit.rules.reduce((found, version, index) => version.effectiveFrom <= date ? index : found, 0);
+
 // The rules in force on a date; the first version also covers days before it took effect
-export const getRulesOn = (habit: Habit, date: string): HabitRules =>
-  habit.rules.reduce((rules, version) => version.effectiveFrom <= date ? version : rules, habit.rules[0]);
+export const getRulesOn = (habit: Habit, date: string): HabitRules => habit.rules[getRulesIndexOn(habit, date)];
 
 export const getCurrentRules = (habit: Habit): HabitRules => habit.rules[habit.rules.length - 1];
 
@@ -41,23 +52,45 @@ const isSameSchedule = (a: HabitSchedule, b: HabitSchedule) => {
   return a.type === b.type;
 };
 
-// A schedule change applies from today; earlier days keep the schedule they had (docs/adr/0001)
-export const changeSchedule = (habit: Habit, schedule: HabitSchedule, today: string = getToday()): Habit => {
+const isSameTarget = (a?: HabitTarget, b?: HabitTarget) =>
+  a?.direction === b?.direction && a?.amount === b?.amount;
+
+export type RulesChange = Omit<HabitRules, 'effectiveFrom'>;
+
+const isSameRules = (a: RulesChange, b: RulesChange) =>
+  isSameSchedule(a.schedule, b.schedule) && isSameTarget(a.target, b.target);
+
+const toRules = (effectiveFrom: string, { schedule, target }: RulesChange): HabitRules =>
+  ({ effectiveFrom, schedule, ...(target && { target }) });
+
+// A schedule or target change applies from today; earlier days keep the rules they had (docs/adr/0001)
+export const changeRules = (habit: Habit, change: RulesChange, today: string = getToday()): Habit => {
   const current = getCurrentRules(habit);
-  if (isSameSchedule(current.schedule, schedule)) return habit;
+  if (isSameRules(current, change)) return habit;
 
   // A version that has not had a full day yet is replaced rather than kept
   const changedToday = current.effectiveFrom >= today;
   const earlier = changedToday ? habit.rules.slice(0, -1) : habit.rules;
   const previous = earlier[earlier.length - 1];
 
-  if (!previous) return { ...habit, rules: [{ effectiveFrom: current.effectiveFrom, schedule }] };
+  if (!previous) return { ...habit, rules: [toRules(current.effectiveFrom, change)] };
   // Changing back on the same day undoes today's change
-  if (changedToday && isSameSchedule(previous.schedule, schedule)) return { ...habit, rules: earlier };
-  return { ...habit, rules: [...earlier, { effectiveFrom: today, schedule }] };
+  if (changedToday && isSameRules(previous, change)) return { ...habit, rules: earlier };
+  return { ...habit, rules: [...earlier, toRules(today, change)] };
 };
 
-const isScheduleDay = ({ schedule, effectiveFrom }: HabitRules, date: string) => {
+// The day a schedule took effect: the earliest of the consecutive versions that share it, so a
+// target change does not restart an interval
+const getScheduleAnchor = (habit: Habit, index: number) => {
+  const { schedule } = habit.rules[index];
+  let first = index;
+  while (first > 0 && isSameSchedule(habit.rules[first - 1].schedule, schedule)) first -= 1;
+  return habit.rules[first].effectiveFrom;
+};
+
+const isScheduleDay = (habit: Habit, date: string) => {
+  const index = getRulesIndexOn(habit, date);
+  const { schedule } = habit.rules[index];
   if (schedule.type === 'daily') return true;
 
   const currentDate = parseISO(date);
@@ -66,7 +99,7 @@ const isScheduleDay = ({ schedule, effectiveFrom }: HabitRules, date: string) =>
     return schedule.days.includes(weekday as Weekday);
   }
 
-  const daysFromAnchor = differenceInCalendarDays(currentDate, parseISO(effectiveFrom));
+  const daysFromAnchor = differenceInCalendarDays(currentDate, parseISO(getScheduleAnchor(habit, index)));
   return ((daysFromAnchor % schedule.intervalDays) + schedule.intervalDays) % schedule.intervalDays === 0;
 };
 
@@ -134,7 +167,7 @@ const isArchivedOn = (habit: Habit, date: string) =>
 const wouldBeDue = (habit: Habit, date: string) =>
   !isHabitPausedOn(habit, date)
     && !isArchivedOn(habit, date)
-    && isScheduleDay(getRulesOn(habit, date), date);
+    && isScheduleDay(habit, date);
 
 export const isDueDay = (habit: Habit, date: string) =>
   date >= habit.startDate && wouldBeDue(habit, date);
@@ -144,45 +177,81 @@ export const isDueDay = (habit: Habit, date: string) =>
 export const getCheckIn = (habit: Habit, date: string): CheckIn | undefined =>
   habit.checkIns.find((checkIn) => checkIn.date === date);
 
+export const getCheckInAmount = (checkIn?: CheckIn) =>
+  checkIn && 'amount' in checkIn ? checkIn.amount : undefined;
+
+export const isSkipped = (checkIn?: CheckIn) =>
+  checkIn !== undefined && 'status' in checkIn && checkIn.status === 'skipped';
+
 // Archived habits are read-only and paused days take no check-ins. Any other day can: a day that is
 // not due takes a bonus check-in, and a day before the start date backfills history
 export const canCheckIn = (habit: Habit, date: string) =>
   !isHabitArchived(habit) && !isHabitPausedOn(habit, date);
 
+// Only a day that would be due can be skipped
+export const canSkip = (habit: Habit, date: string) => wouldBeDue(habit, date);
+
 // Records a check-in, or clears it with null; checking in before the start date moves it back
-export const setCheckIn = (habit: Habit, date: string, status: CheckInStatus | null): Habit => {
+export const setCheckIn = (habit: Habit, date: string, value: CheckInValue | null): Habit => {
   const checkIns = habit.checkIns.filter((checkIn) => checkIn.date !== date);
-  if (!status) return { ...habit, checkIns };
+  if (!value) return { ...habit, checkIns };
 
   const startDate = date < habit.startDate ? date : habit.startDate;
-  return { ...habit, startDate, checkIns: [...checkIns, { date, status }] };
+  return { ...habit, startDate, checkIns: [...checkIns, { date, ...value }] };
 };
 
-// Tapping a day cycles Open -> Done -> Skip -> Open; a day that would not be due cannot be skipped
-export const getNextCheckInStatus = (habit: Habit, date: string): CheckInStatus | null => {
-  const status = getCheckIn(habit, date)?.status;
-  if (!status) return 'done';
-  if (status === 'done' && wouldBeDue(habit, date)) return 'skipped';
+// Tapping a yes/no habit's day cycles Open -> Done -> Skip -> Open
+export const getNextCheckIn = (habit: Habit, date: string): CheckInValue | null => {
+  const checkIn = getCheckIn(habit, date);
+  if (!checkIn) return { status: 'done' };
+  if (!isSkipped(checkIn) && canSkip(habit, date)) return { status: 'skipped' };
   return null;
+};
+
+// Outcomes
+
+// Whether a day meets the habit. A measurable habit meets its target in force that day; an at-most
+// habit is only judged on due days, where an empty day counts as zero
+export const isDayDone = (habit: Habit, date: string) => {
+  const checkIn = getCheckIn(habit, date);
+  if (isSkipped(checkIn)) return false;
+
+  const { target } = getRulesOn(habit, date);
+  if (!target) return checkIn !== undefined;
+
+  const amount = getCheckInAmount(checkIn) ?? 0;
+  if (target.direction === 'atLeast') return amount >= target.amount;
+  return isDueDay(habit, date) && amount <= target.amount;
+};
+
+// How far a day goes towards done, from 0 to 1, with partial progress counting in proportion;
+// undefined when the day is skipped
+const getDayValue = (habit: Habit, date: string, checkIn?: CheckIn) => {
+  if (isSkipped(checkIn)) return undefined;
+
+  const { target } = getRulesOn(habit, date);
+  if (!target) return checkIn ? 1 : 0;
+
+  const amount = getCheckInAmount(checkIn) ?? 0;
+  if (target.direction === 'atLeast') return Math.min(amount / target.amount, 1);
+  return amount <= target.amount ? 1 : 0;
 };
 
 // Progress
 
 export const getCurrentStreak = (habit: Habit, referenceDate: string = getToday()) => {
-  const statusByDate = new Map(habit.checkIns.map(({ date, status }) => [date, status]));
   const getPreviousDate = (date: string) => format(subDays(parseISO(date), 1), DATE_FORMAT_FULL);
   let streak = 0;
 
   for (let date = referenceDate; date >= habit.startDate; date = getPreviousDate(date)) {
     if (!isDueDay(habit, date)) continue;
 
-    const status = statusByDate.get(date);
-    if (status === 'done') {
+    if (isDayDone(habit, date)) {
       streak += 1;
-    } else if (status === 'skipped') {
+    } else if (isSkipped(getCheckIn(habit, date))) {
       continue;
     } else if (date !== referenceDate) {
-      // A missed earlier day ends the streak; today stays open until the day is over
+      // A failed earlier day ends the streak; today stays open until the day is over
       break;
     }
   }
@@ -205,36 +274,38 @@ const getScoreMultiplier = (schedule: HabitSchedule) => {
   return 0.5 ** (1 / halfLifeInDueDays);
 };
 
-// How established a habit is, from 0 to 1. Each done due day or bonus check-in moves the score
-// towards 1 and each missed day towards 0, recent days weighing most; skips, pauses, days that are
-// not due, and a still-open today leave it unchanged
+// How established a habit is, from 0 to 1, recent days weighing most. Each due day moves the score
+// towards its value: 1 when done, 0 when failed, the fraction reached for partial progress. A bonus
+// check-in only ever raises it, in proportion to its value. Skips, pauses, days that are not due, and
+// a today that is not yet done leave it unchanged
 export const getStrengthScore = (habit: Habit, referenceDate: string = getToday()) => {
-  const statusByDate = new Map(habit.checkIns.map(({ date, status }) => [date, status]));
+  const checkInsByDate = new Map(habit.checkIns.map((checkIn) => [checkIn.date, checkIn]));
   const getNextDate = (date: string) => format(addDays(parseISO(date), 1), DATE_FORMAT_FULL);
   let score = 0;
 
   for (let date = habit.startDate; date <= referenceDate; date = getNextDate(date)) {
-    const status = statusByDate.get(date);
-    const isDue = isDueDay(habit, date);
-    let value: number;
+    const checkIn = checkInsByDate.get(date);
+    const value = getDayValue(habit, date, checkIn);
+    if (value === undefined) continue;
 
-    if (status === 'done') value = 1;
-    else if (isDue && !status && date < referenceDate) value = 0;
-    else continue;
+    const { schedule, target } = getRulesOn(habit, date);
+    const multiplier = getScoreMultiplier(schedule);
 
-    const multiplier = getScoreMultiplier(getRulesOn(habit, date).schedule);
-    score = score * multiplier + value * (1 - multiplier);
+    if (isDueDay(habit, date)) {
+      if (date === referenceDate && value < 1) continue;
+      score = score * multiplier + value * (1 - multiplier);
+    } else if (checkIn && target?.direction !== 'atMost') {
+      score += (1 - score) * (1 - multiplier) * value;
+    }
   }
 
   return score;
 };
 
-export const getActivityCalendarData = (habit: Habit) => {
-  const statusByDate = new Map(habit.checkIns.map(({ date, status }) => [date, status]));
-
-  return getLastNDates(HISTORY_DAYS_TO_SHOW + 1).map((date) => {
+export const getActivityCalendarData = (habit: Habit) =>
+  getLastNDates(HISTORY_DAYS_TO_SHOW + 1).map((date) => {
     const formattedDate = format(date, DATE_FORMAT_FULL);
-    const level = statusByDate.get(formattedDate) === 'done' ? 1 : 0;
+    const level = isDayDone(habit, formattedDate) ? 1 : 0;
 
     return {
       date: formattedDate,
@@ -242,4 +313,3 @@ export const getActivityCalendarData = (habit: Habit) => {
       level
     };
   });
-}

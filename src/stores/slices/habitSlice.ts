@@ -1,5 +1,5 @@
 import { StateCreator } from 'zustand';
-import { CheckInStatus, Habit } from '../../types/';
+import { CheckInValue, Habit } from '../../types/';
 import { setCheckIn } from '../../utils/habitUtils';
 
 export interface HabitSlice {
@@ -8,7 +8,7 @@ export interface HabitSlice {
   removeHabit: (id: string) => void;
   updateHabit: (habit: Habit) => void;
   replaceHabits: (habits: Habit[]) => void;
-  setCheckIn: (habitId: string, date: string, status: CheckInStatus | null) => void;
+  setCheckIn: (habitId: string, date: string, value: CheckInValue | null) => void;
   getHabit: (id?: string) => Habit | undefined;
   resetHabits: () => void;
 }
@@ -30,9 +30,9 @@ export const createHabitSlice: StateCreator<HabitSlice> = (set, get) => ({
       checkIns: [...habit.checkIns]
     }))
   })),
-  setCheckIn: (habitId, date, status) => set((state) => ({
+  setCheckIn: (habitId, date, value) => set((state) => ({
     habits: state.habits.map((habit) => habit.id === habitId
-      ? setCheckIn(habit, date, status)
+      ? setCheckIn(habit, date, value)
       : habit)
   })),
   getHabit: (id) => id ? getHabit(get().habits, id) : undefined,

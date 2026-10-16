@@ -14,8 +14,8 @@ describe('habit check-in updates', () => {
     const habit = createHabit('Meditate', '');
     store.setState({ habits: [habit] });
 
-    store.getState().setCheckIn(habit.id, '2026-09-22', 'done');
-    store.getState().setCheckIn(habit.id, '2026-09-22', 'skipped');
+    store.getState().setCheckIn(habit.id, '2026-09-22', { status: 'done' });
+    store.getState().setCheckIn(habit.id, '2026-09-22', { status: 'skipped' });
     expect(store.getState().habits[0].checkIns).toEqual([{ date: '2026-09-22', status: 'skipped' }]);
     expect(habit.checkIns).toEqual([]);
 
@@ -27,10 +27,10 @@ describe('habit check-in updates', () => {
     const habit = { ...createHabit('Journal', ''), startDate: '2026-09-22' };
     store.setState({ habits: [habit] });
 
-    store.getState().setCheckIn(habit.id, '2026-09-20', 'done');
+    store.getState().setCheckIn(habit.id, '2026-09-20', { status: 'done' });
     expect(store.getState().habits[0].startDate).toBe('2026-09-20');
 
-    store.getState().setCheckIn(habit.id, '2026-09-21', 'skipped');
+    store.getState().setCheckIn(habit.id, '2026-09-21', { status: 'skipped' });
     store.getState().setCheckIn(habit.id, '2026-09-20', null);
     expect(store.getState().habits[0].startDate).toBe('2026-09-20');
   });
