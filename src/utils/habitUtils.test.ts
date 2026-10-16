@@ -9,6 +9,7 @@ import {
   getCurrentStreak,
   getNextCheckInStatus,
   getRulesOn,
+  getStrengthScore,
   isDueDay,
   isHabitPausedOn,
   mergePauses,
@@ -18,6 +19,7 @@ import {
   setCheckIn
 } from './habitUtils';
 import { getToday } from './dateUtils';
+import { addDays, format, parseISO } from 'date-fns';
 
 // 2026-09-19 is a Saturday, 2026-09-21 a Monday
 const checkIn = (date: string, status: CheckInStatus = 'done'): CheckIn => ({ date, status });
@@ -35,6 +37,10 @@ const makeHabit = (overrides: Partial<Habit> = {}): Habit => ({
 
 const mondayWednesday = (): HabitSchedule => ({ type: 'weekdays', days: ['monday', 'wednesday'] });
 const mondayWednesdayRules = () => [{ effectiveFrom: '2026-09-19', schedule: mondayWednesday() }];
+
+// `count` consecutive dates, `step` days apart, from `start`
+const dates = (start: string, count: number, step = 1) =>
+  Array.from({ length: count }, (_, index) => format(addDays(parseISO(start), index * step), 'yyyy-MM-dd'));
 
 describe('due days', () => {
   it('matches selected weekdays only', () => {
@@ -323,6 +329,62 @@ describe('current streaks', () => {
     }), mondayWednesday(), '2026-09-22');
 
     expect(getCurrentStreak(habit, '2026-09-24')).toBe(4);
+  });
+});
+
+describe('strength score', () => {
+  const DAILY_HALF_LIFE = 13;
+
+  it('starts at zero', () => {
+    expect(getStrengthScore(makeHabit(), '2026-09-25')).toBe(0);
+  });
+
+  it('reaches one half after a half-life of done days', () => {
+    const doneDays = dates('2026-09-19', DAILY_HALF_LIFE);
+    const habit = makeHabit({ checkIns: doneDays.map((date) => checkIn(date)) });
+
+    expect(getStrengthScore(habit, doneDays[doneDays.length - 1])).toBeCloseTo(0.5, 10);
+  });
+
+  it('is lowered by a missed day but not by an open today', () => {
+    const doneDays = dates('2026-09-19', DAILY_HALF_LIFE);
+    const habit = makeHabit({ checkIns: doneDays.map((date) => checkIn(date)) });
+    const [today, tomorrow] = dates('2026-10-02', 2);
+
+    expect(getStrengthScore(habit, today)).toBeCloseTo(0.5, 10);
+    expect(getStrengthScore(habit, tomorrow)).toBeCloseTo(0.5 * 0.5 ** (1 / DAILY_HALF_LIFE), 10);
+  });
+
+  it('is unchanged by skips and pauses', () => {
+    const withoutGap = makeHabit({ checkIns: [checkIn('2026-09-19'), checkIn('2026-09-20')] });
+    const skipped = makeHabit({
+      checkIns: [checkIn('2026-09-19'), checkIn('2026-09-20', 'skipped'), checkIn('2026-09-21')]
+    });
+    const paused = makeHabit({
+      pauses: [{ start: '2026-09-20', end: '2026-09-25' }],
+      checkIns: [checkIn('2026-09-19'), checkIn('2026-09-25')]
+    });
+
+    expect(getStrengthScore(skipped, '2026-09-21')).toBeCloseTo(getStrengthScore(withoutGap, '2026-09-20'), 10);
+    expect(getStrengthScore(paused, '2026-09-25')).toBeCloseTo(getStrengthScore(withoutGap, '2026-09-20'), 10);
+  });
+
+  it('is raised by bonus check-ins', () => {
+    const withoutBonus = makeHabit({ rules: mondayWednesdayRules(), checkIns: [checkIn('2026-09-21')] });
+    const withBonus = setCheckIn(withoutBonus, '2026-09-22', 'done');
+
+    expect(getStrengthScore(withBonus, '2026-09-22')).toBeGreaterThan(getStrengthScore(withoutBonus, '2026-09-22'));
+  });
+
+  it('decays per due day, with a shorter half-life for habits that are due less often', () => {
+    const weeklyHalfLife = DAILY_HALF_LIFE * Math.sqrt(1 / 7);
+    const mondays = dates('2026-09-21', 5, 7);
+    const habit = makeHabit({
+      rules: [{ effectiveFrom: '2026-09-19', schedule: { type: 'weekdays', days: ['monday'] } }],
+      checkIns: mondays.map((date) => checkIn(date))
+    });
+
+    expect(getStrengthScore(habit, mondays[4])).toBeCloseTo(1 - 0.5 ** (5 / weeklyHalfLife), 10);
   });
 });
 

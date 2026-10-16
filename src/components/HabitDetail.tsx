@@ -11,6 +11,7 @@ import Card from './Card';
 import {
   archiveHabit,
   getCurrentStreak,
+  getStrengthScore,
   isHabitArchived,
   isHabitPaused,
   pauseHabit,
@@ -18,6 +19,7 @@ import {
   resumeHabit
 } from '../utils/habitUtils';
 import { DELETE_HABIT_MESSAGE } from '../utils/constants';
+import StrengthRing from './StrengthRing';
 
 
 const HabitDetail = () => {
@@ -40,6 +42,8 @@ const HabitDetail = () => {
 
   const isPaused = habit ? isHabitPaused(habit) : false;
   const isArchived = habit ? isHabitArchived(habit) : false;
+  const strength = habit ? getStrengthScore(habit) : 0;
+  const streak = habit ? getCurrentStreak(habit) : 0;
 
   const handleArchive = () => {
     if (habit) updateHabit(archiveHabit(habit));
@@ -64,7 +68,11 @@ const HabitDetail = () => {
       
         <div >{habit.description}</div>
         <div>Status: {isArchived ? 'Archived' : isPaused ? 'Paused' : 'Active'}</div>
-        {!isArchived && <div>Current streak: {getCurrentStreak(habit)} days</div>}
+        <div className='flex items-center gap-2 my-2'>
+          <StrengthRing score={strength} size={36} />
+          <span>Strength: {Math.round(strength * 100)}%</span>
+        </div>
+        {!isArchived && <div>Current streak: {streak} {streak === 1 ? 'day' : 'days'}</div>}
 
         <div className='flex flex-wrap justify-end gap-3 mt-4'>
           {isArchived ? (

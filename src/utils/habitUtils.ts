@@ -1,4 +1,4 @@
-import { differenceInCalendarDays, format, parseISO, subDays } from 'date-fns';
+import { addDays, differenceInCalendarDays, format, parseISO, subDays } from 'date-fns';
 import { CheckIn, CheckInStatus, Habit, HabitPause, HabitReminder, HabitRules, HabitSchedule, Weekday } from '../types/';
 import {v4 as uuidv4} from 'uuid';
 import { DATE_FORMAT_FULL, HISTORY_DAYS_TO_SHOW } from './constants';
@@ -189,6 +189,45 @@ export const getCurrentStreak = (habit: Habit, referenceDate: string = getToday(
 
   return streak;
 }
+
+// Due days per calendar day under a schedule
+const getDueFrequency = (schedule: HabitSchedule) => {
+  if (schedule.type === 'daily') return 1;
+  if (schedule.type === 'weekdays') return schedule.days.length / 7;
+  return 1 / schedule.intervalDays;
+};
+
+// How much of the score survives each counted day. Loop's half-life of 13 * sqrt(frequency) calendar
+// days, expressed in due days: 13 due days for a daily habit, about 5 for a weekly one
+const getScoreMultiplier = (schedule: HabitSchedule) => {
+  const frequency = getDueFrequency(schedule);
+  const halfLifeInDueDays = 13 * Math.sqrt(frequency);
+  return 0.5 ** (1 / halfLifeInDueDays);
+};
+
+// How established a habit is, from 0 to 1. Each done due day or bonus check-in moves the score
+// towards 1 and each missed day towards 0, recent days weighing most; skips, pauses, days that are
+// not due, and a still-open today leave it unchanged
+export const getStrengthScore = (habit: Habit, referenceDate: string = getToday()) => {
+  const statusByDate = new Map(habit.checkIns.map(({ date, status }) => [date, status]));
+  const getNextDate = (date: string) => format(addDays(parseISO(date), 1), DATE_FORMAT_FULL);
+  let score = 0;
+
+  for (let date = habit.startDate; date <= referenceDate; date = getNextDate(date)) {
+    const status = statusByDate.get(date);
+    const isDue = isDueDay(habit, date);
+    let value: number;
+
+    if (status === 'done') value = 1;
+    else if (isDue && !status && date < referenceDate) value = 0;
+    else continue;
+
+    const multiplier = getScoreMultiplier(getRulesOn(habit, date).schedule);
+    score = score * multiplier + value * (1 - multiplier);
+  }
+
+  return score;
+};
 
 export const getActivityCalendarData = (habit: Habit) => {
   const statusByDate = new Map(habit.checkIns.map(({ date, status }) => [date, status]));
