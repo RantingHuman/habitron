@@ -1,12 +1,11 @@
 import { FormEvent, useState } from 'react';
-import { addDays, format, parseISO } from 'date-fns';
 import Button from '../buttons/Button';
 import ValidationError from './ValidationError';
 import { useHabitronStore } from '../../stores';
 import { Habit, HabitPause } from '../../types/';
-import { changePause, countCheckInsRemovedByPause, pauseDates } from '../../utils/habitUtils';
+import { changePause, getLastPausedDay, pauseDates, pauseThrough } from '../../utils/habitUtils';
 import { getToday } from '../../utils/dateUtils';
-import { DATE_FORMAT_FULL } from '../../utils/constants';
+import { formatDayLabel } from '../../utils/formatUtils';
 
 interface PauseDialogProps {
   habit: Habit;
@@ -15,38 +14,48 @@ interface PauseDialogProps {
   onClose: () => void;
 }
 
-// A pause ends on the day the habit resumed, while the form asks for the last paused day
-const shiftDay = (date: string, days: number) =>
-  format(addDays(parseISO(date), days), DATE_FORMAT_FULL);
+// The checked change, kept so saving commits exactly what the user confirmed
+interface PendingPause {
+  updated: Habit;
+  removedCount: number;
+  // Set when the range started before the start date and was cut to begin there
+  clampedTo?: string;
+}
 
-const REJECTED_MESSAGE = 'Pick an Until on or after From, and on or after the habit\'s start date.';
-
-// Pauses a range of dates, or changes an existing pause, confirming first when check-ins would be removed
+// Pauses a range of dates, or changes an existing pause, confirming first when check-ins would be
+// removed or the range had to be cut to the start date
 const PauseDialog = ({ habit, pause, onClose }: PauseDialogProps) => {
   const { updateHabit } = useHabitronStore();
   const [from, setFrom] = useState(pause?.start ?? getToday());
-  const [until, setUntil] = useState(pause?.end ? shiftDay(pause.end, -1) : '');
+  const [until, setUntil] = useState(pause ? getLastPausedDay(pause) ?? '' : '');
   const [error, setError] = useState('');
-  const [removedCount, setRemovedCount] = useState(0);
+  const [pending, setPending] = useState<PendingPause | null>(null);
 
-  const range: HabitPause = until ? { start: from, end: shiftDay(until, 1) } : { start: from };
-  const apply = () => pause ? changePause(habit, pause, range) : pauseDates(habit, range);
-
-  const save = () => {
-    const updated = apply();
-    if (updated) updateHabit(updated);
+  const save = (updated: Habit) => {
+    updateHabit(updated);
     onClose();
   };
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
-    if (!from || !apply()) {
-      setError(REJECTED_MESSAGE);
+    if (!from) return;
+    if (until && until < from) {
+      setError('Until must not be before From.');
       return;
     }
-    const count = countCheckInsRemovedByPause(habit, range);
-    if (count > 0) setRemovedCount(count);
-    else save();
+
+    const range = pauseThrough(from, until || undefined);
+    const updated = pause ? changePause(habit, pause, range) : pauseDates(habit, range);
+    if (!updated) {
+      setError(`The pause must include a day on or after the habit's start date, ${formatDayLabel(habit.startDate)}.`);
+      return;
+    }
+
+    // Changing a pause never brings check-ins back, so any drop is what this pause removes
+    const removedCount = habit.checkIns.length - updated.checkIns.length;
+    const clampedTo = from < habit.startDate ? habit.startDate : undefined;
+    if (removedCount > 0 || clampedTo) setPending({ updated, removedCount, clampedTo });
+    else save(updated);
   };
 
   return (
@@ -55,22 +64,30 @@ const PauseDialog = ({ habit, pause, onClose }: PauseDialogProps) => {
       <form onSubmit={handleSubmit}
         className='p-4 rounded-md w-full max-w-sm mx-auto mt-20 border-blue-300 dark:border-blue-700 bg-white dark:bg-slate-800 border-2'>
         <h2 className='text-lg font-semibold'>{pause ? 'Change pause' : 'Pause dates'}</h2>
-        {removedCount > 0 ? (
+        {pending ? (
           <>
-            <p className='mt-2'>
-              This removes {removedCount} {removedCount === 1 ? 'check-in' : 'check-ins'} on the paused days.
-              They don't come back if the pause is changed or removed later.
-            </p>
+            {pending.clampedTo && (
+              <p className='mt-2'>
+                The habit starts on {formatDayLabel(pending.clampedTo)}, so the pause starts then.
+              </p>
+            )}
+            {pending.removedCount > 0 && (
+              <p className='mt-2'>
+                This removes {pending.removedCount} {pending.removedCount === 1 ? 'check-in' : 'check-ins'} on the
+                paused days. They don't come back if the pause is changed or removed later.
+              </p>
+            )}
             <div className='flex justify-end gap-3 mt-4'>
-              <Button name='cancel' type='button' appearance='secondary' onClick={() => setRemovedCount(0)}>Back</Button>
-              <Button name='confirm' type='button' appearance='danger' onClick={save}>Pause</Button>
+              <Button name='cancel' type='button' appearance='secondary' onClick={() => setPending(null)}>Back</Button>
+              <Button name='confirm' type='button' appearance={pending.removedCount > 0 ? 'danger' : 'primary'}
+                onClick={() => save(pending.updated)}>Pause</Button>
             </div>
           </>
         ) : (
           <>
             <label className='block mt-4'>
               From
-              <input name='pause-from' type='date' required value={from} className='block mt-1 w-full rounded-md'
+              <input name='pause-from' type='date' required value={from} min={habit.startDate} className='block mt-1 w-full rounded-md'
                 onChange={(e) => { setFrom(e.target.value); setError(''); }} />
             </label>
             <label className='block mt-4'>
