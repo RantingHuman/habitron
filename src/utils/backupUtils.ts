@@ -1,5 +1,6 @@
 import { CheckIn, Habit, HabitPause, HabitRules, HabitSchedule, HabitTarget, Weekday } from '../types/';
 import { WEEKDAY_FREQUENCIES } from './constants';
+import { mergePauses } from './habitUtils';
 import { MigrationChain, savedDataMigrations } from './migrationUtils';
 
 export interface HabitronBackup {
@@ -125,7 +126,8 @@ export const parseBackup = (content: string, migrations: MigrationChain = savedD
 
   const { habits } = migrations.migrate({ habits: parsed.habits }, parsed.version);
   if (Array.isArray(habits) && habits.every(isHabit)) {
-    return habits;
+    // An edited backup may hold overlapping pauses; joining them keeps each pause's first day unique
+    return habits.map((habit) => ({ ...habit, pauses: mergePauses(habit.pauses) }));
   }
 
   throw new Error('The backup file is not a valid Habitron backup.');

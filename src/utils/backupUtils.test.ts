@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { archiveHabit, createHabit, pauseHabit, setCheckIn } from './habitUtils';
+import { archiveHabit, createHabit, isDueDay, pauseHabit, removePause, setCheckIn } from './habitUtils';
 import { parseBackup, serializeBackup } from './backupUtils';
 
 const toBackup = (version: number, habits: unknown[]) => JSON.stringify({
@@ -53,6 +53,27 @@ describe('Habitron backups', () => {
     })).toThrow('not a valid Habitron backup');
     expect(invalid({ pauses: [{ start: '2026-09-22', end: '2026-09-21' }] })).toThrow('not a valid Habitron backup');
     expect(invalid({ archivedOn: 'yesterday' })).toThrow('not a valid Habitron backup');
+  });
+
+  it('joins overlapping pauses from an edited backup, so each pause can be removed on its own', () => {
+    const habit = { ...createHabit('Read', ''), startDate: '2026-09-01' };
+    const [imported] = parseBackup(toBackup(5, [{
+      ...habit,
+      pauses: [
+        { start: '2026-09-10', end: '2026-09-15' },
+        { start: '2026-09-10', end: '2026-09-12' },
+        { start: '2026-09-14', end: '2026-09-18' },
+        { start: '2026-09-18', end: '2026-09-20' }
+      ]
+    }]));
+    const [first, second] = imported.pauses;
+    const withoutFirst = removePause(imported, first);
+
+    expect(new Set(imported.pauses.map(({ start }) => start)).size).toBe(imported.pauses.length);
+    expect(['2026-09-10', '2026-09-17', '2026-09-19'].some((date) => isDueDay(imported, date))).toBe(false);
+    expect(['2026-09-10', '2026-09-17'].every((date) => isDueDay(withoutFirst, date))).toBe(true);
+    expect(isDueDay(removePause(imported, second), '2026-09-19')).toBe(true);
+    expect(isDueDay(removePause(imported, second), '2026-09-17')).toBe(false);
   });
 
   it('round-trips a measurable habit', () => {
