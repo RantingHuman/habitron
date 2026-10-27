@@ -38,3 +38,18 @@ export const persistMigrations = <T>(chain: MigrationChain) => ({
   version: chain.version,
   migrate: (state: unknown, fromVersion: number) => chain.migrate(state as SavedData, fromVersion) as T
 });
+
+interface RawDataBackend {
+  get: (name: string) => Promise<string | null>;
+  delete: (name: string) => Promise<void>;
+}
+
+// What the user can do when saved data can't be read (ADR 0002): save it to a file exactly as stored,
+// or explicitly start fresh. Nothing is discarded unless they choose to
+export const createLoadRecovery = (name: string, backend: RawDataBackend, rehydrate: () => Promise<void> | void) => ({
+  readRawData: () => backend.get(name),
+  startFresh: async () => {
+    await backend.delete(name);
+    await rehydrate();
+  }
+});

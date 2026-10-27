@@ -4,7 +4,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { Habit } from '../types';
 import { createHabit } from './habitUtils';
 import { parseBackup } from './backupUtils';
-import { createMigrationChain, persistMigrations } from './migrationUtils';
+import { createLoadRecovery, createMigrationChain, persistMigrations } from './migrationUtils';
 
 // A stand-in for a future v5 -> v6 change to the saved shape
 const shoutNames = (data: Record<string, unknown>) => ({
@@ -60,13 +60,24 @@ describe('Migrating stored data on load', () => {
       }
     ));
     await store.persist.rehydrate();
-    return { state: store.getState(), loadError, stored: () => backend.get('habitron'), saved };
+    const recovery = createLoadRecovery('habitron', {
+      get: async (name) => backend.get(name) ?? null,
+      delete: async (name) => { backend.delete(name); }
+    }, () => store.persist.rehydrate());
+    return {
+      state: store.getState(),
+      store,
+      recovery,
+      loadError: () => loadError,
+      stored: () => backend.get('habitron'),
+      saved
+    };
   };
 
   it('runs each step from the stored version to the current one', async () => {
     const { state, loadError } = await loadStoredData(5, [createHabit('Read', '')]);
 
-    expect(loadError).toBeUndefined();
+    expect(loadError()).toBeUndefined();
     expect(state.habits[0].name).toBe('READ');
     expect(state.darkMode).toBe(true);
   });
@@ -74,8 +85,25 @@ describe('Migrating stored data on load', () => {
   it('reports data from a newer version as an error and keeps it', async () => {
     const { state, loadError, stored, saved } = await loadStoredData(7, [createHabit('Read', '')]);
 
-    expect(String(loadError)).toContain('version 7');
+    expect(String(loadError())).toContain('version 7');
     expect(state.habits).toEqual([]);
     expect(stored()).toBe(saved);
+  });
+
+  it('hands back unreadable data exactly as it was stored', async () => {
+    const { recovery, saved } = await loadStoredData(7, [createHabit('Read', '')]);
+
+    expect(await recovery.readRawData()).toBe(saved);
+  });
+
+  it('starts fresh only when asked, wiping the unreadable data and loading empty', async () => {
+    const { recovery, store, loadError, stored } = await loadStoredData(7, [createHabit('Read', '')]);
+
+    await recovery.startFresh();
+
+    expect(loadError()).toBeUndefined();
+    expect(store.getState().habits).toEqual([]);
+    // The empty start is saved under the current version in place of the unreadable data
+    expect(JSON.parse(stored()!)).toEqual({ state: { habits: [], darkMode: false }, version: 6 });
   });
 });
