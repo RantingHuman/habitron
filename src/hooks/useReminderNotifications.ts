@@ -72,12 +72,27 @@ const useReminderNotifications = () => {
     const handleError = (error: unknown) => console.error('Failed to send Habitron reminder', error);
 
     if (isMobileRuntime()) {
-      // Debounced so a burst of edits reschedules once
-      const timeoutId = window.setTimeout(
-        () => void scheduleNativeReminders(habits).catch(handleError),
-        RESCHEDULE_DELAY_MS
-      );
-      return () => window.clearTimeout(timeoutId);
+      // Debounced so a burst of edits (or a quick background/foreground flip) reschedules once
+      let timeoutId: number | undefined;
+      const reschedule = () => {
+        window.clearTimeout(timeoutId);
+        timeoutId = window.setTimeout(
+          () => void scheduleNativeReminders(habits).catch(handleError),
+          RESCHEDULE_DELAY_MS
+        );
+      };
+
+      // Returning to the foreground moves the 14-day window forward, even if the app stayed open overnight
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') reschedule();
+      };
+
+      reschedule();
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      return () => {
+        window.clearTimeout(timeoutId);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      };
     }
 
     const checkReminders = () => void sendDueReminders(habits, () => disposed).catch(handleError);
