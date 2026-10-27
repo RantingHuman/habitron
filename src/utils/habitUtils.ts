@@ -168,11 +168,12 @@ export const pauseHabit = (habit: Habit, today: string = getToday()): Habit => {
   return pauseDates(habit, { start: today }) ?? habit;
 };
 
+// Ends only the pause covering today; earlier pauses and pauses planned for later days are kept
 export const resumeHabit = (habit: Habit, today: string = getToday()): Habit => {
   const pauses = habit.pauses.flatMap((pause) => {
-    if (pause.end && pause.end <= today) return [pause];
-    // A pause that has not started yet (e.g. paused and resumed on the same day) leaves no trace
-    if (pause.start >= today) return [];
+    if (!isPausedIn([pause], today)) return [pause];
+    // A pause that started today (paused and resumed on the same day) leaves no trace
+    if (pause.start === today) return [];
     return [{ ...pause, end: today }];
   });
   return { ...habit, pauses };

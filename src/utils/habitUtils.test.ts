@@ -218,6 +218,21 @@ describe('pausing', () => {
     expect(pauseHabit(resumed, '2026-09-25').pauses).toEqual([{ start: '2026-09-22' }]);
   });
 
+  it('keeps a planned pause when resuming from the current one', () => {
+    const planned = makeHabit({ pauses: [{ start: '2026-10-01', end: '2026-12-20' }, { start: '2026-12-20', end: '2027-01-01' }] });
+    const habit = resumeHabit(planned, '2026-11-10');
+
+    expect(isDueDay(habit, '2026-11-10')).toBe(true);
+    expect(dates('2026-12-20', 12).some((date) => isDueDay(habit, date))).toBe(false);
+    expect(isDueDay(habit, '2027-01-01')).toBe(true);
+  });
+
+  it('keeps a planned pause when resuming while not paused', () => {
+    const planned = makeHabit({ pauses: [{ start: '2026-12-20', end: '2027-01-01' }] });
+
+    expect(isDueDay(resumeHabit(planned, '2026-11-10'), '2026-12-24')).toBe(false);
+  });
+
   it('ignores a pause while already paused', () => {
     const habit = pauseHabit(makeHabit(), '2026-09-22');
 
