@@ -8,7 +8,6 @@ import Button from './buttons/Button';
 import HabitHistory from './HabitHistory';
 import useHabitronNavigation from '../hooks/useHabitronNavigation';
 import Card from './Card';
-import { addDays, format, parseISO } from 'date-fns';
 import { HabitPause } from '../types/';
 import PauseDialog from './dialogs/PauseDialog';
 import {
@@ -24,16 +23,10 @@ import {
   restoreHabit,
   resumeHabit
 } from '../utils/habitUtils';
-import { DATE_FORMAT_FULL, DELETE_HABIT_MESSAGE } from '../utils/constants';
+import { DELETE_HABIT_MESSAGE } from '../utils/constants';
 import StrengthRing from './StrengthRing';
-import { formatDayLabel, formatTarget } from '../utils/formatUtils';
+import { formatPauseRange, formatTarget } from '../utils/formatUtils';
 import { getToday } from '../utils/dateUtils';
-
-// A pause's end is the day the habit resumed; people read a range by its last paused day
-const describePause = ({ start, end }: HabitPause) => end
-  ? `${formatDayLabel(start)} – ${formatDayLabel(format(addDays(parseISO(end), -1), DATE_FORMAT_FULL))}`
-  : `From ${formatDayLabel(start)}, until resumed`;
-
 
 const HabitDetail = () => {
   const { id } = useParams();
@@ -124,7 +117,7 @@ const HabitDetail = () => {
             <ul>
               {habit.pauses.map((pause) => (
                 <li key={pause.start} className='flex items-center justify-between gap-2 py-1'>
-                  <span>{describePause(pause)}</span>
+                  <span>{formatPauseRange(pause)}</span>
                   {!isArchived && (
                     <span className='flex gap-2'>
                       <Button name='edit-pause' appearance='transparent' onClick={() => setEditingPause(pause)}>Edit</Button>

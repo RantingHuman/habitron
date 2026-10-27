@@ -2,7 +2,7 @@ import { addDays, differenceInCalendarDays, format, parseISO, subDays } from 'da
 import { CheckIn, CheckInValue, Habit, HabitPause, HabitReminder, HabitRules, HabitSchedule, HabitTarget, Weekday } from '../types/';
 import {v4 as uuidv4} from 'uuid';
 import { DATE_FORMAT_FULL, HISTORY_DAYS_TO_SHOW } from './constants';
-import { getToday, getLastNDates } from './dateUtils';
+import { getToday, getLastNDates, shiftDate } from './dateUtils';
 
 // What makes a habit measurable; without it the habit is a yes/no habit
 export interface HabitMeasure {
@@ -107,6 +107,12 @@ const isScheduleDay = (habit: Habit, date: string) => {
 
 const isPausedIn = (pauses: HabitPause[], date: string) =>
   pauses.some(({ start, end }) => start <= date && (!end || date < end));
+
+// A pause's `end` is the day the habit resumed, while people name a range by its last paused day
+export const getLastPausedDay = ({ end }: HabitPause) => end && shiftDate(end, -1);
+
+export const pauseThrough = (start: string, lastDay?: string): HabitPause =>
+  lastDay ? { start, end: shiftDate(lastDay, 1) } : { start };
 
 export const isHabitPausedOn = (habit: Habit, date: string) => isPausedIn(habit.pauses, date);
 
