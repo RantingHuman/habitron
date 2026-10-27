@@ -6,7 +6,7 @@ import {
   Schedule,
   sendNotification
 } from '@tauri-apps/plugin-notification';
-import { useHabitronStore } from '../stores';
+import { useHabitronStore, usePersistenceStore } from '../stores';
 import { Habit } from '../types/';
 import { getToday } from '../utils/dateUtils';
 import {
@@ -64,9 +64,11 @@ const sendDueReminders = async (habits: Habit[], isDisposed: () => boolean) => {
 
 const useReminderNotifications = () => {
   const habits = useHabitronStore((state) => state.habits);
+  const hasHydrated = usePersistenceStore((state) => state.hasHydrated);
 
   useEffect(() => {
-    if (!isTauriRuntime()) return;
+    // Until saved habits have loaded, `habits` is empty; rescheduling then would cancel every reminder
+    if (!isTauriRuntime() || !hasHydrated) return;
 
     let disposed = false;
     const handleError = (error: unknown) => console.error('Failed to send Habitron reminder', error);
@@ -103,7 +105,7 @@ const useReminderNotifications = () => {
       disposed = true;
       window.clearInterval(intervalId);
     };
-  }, [habits]);
+  }, [habits, hasHydrated]);
 };
 
 export default useReminderNotifications;
