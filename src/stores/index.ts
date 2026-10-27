@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { createHabitSlice, type HabitSlice } from "./slices/habitSlice";
 import { createSystemSlice, type SystemSlice } from "./slices/systemSlice";
 import { isTauriRuntime } from '../utils/platform';
+import { persistMigrations, savedDataMigrations } from '../utils/migrationUtils';
 
 interface PersistenceState {
   hasHydrated: boolean;
@@ -123,9 +124,8 @@ export const useHabitronStore = create<HabitronState>()(
     }),
     {
       name: 'habitron',
-      // Bump when the persisted shape changes. Data saved under another version is discarded, not
-      // migrated, because the app has no production users yet
-      version: 5,
+      // Data saved under an older version runs the migration chain on load (ADR 0002)
+      ...persistMigrations<PersistedHabitronState>(savedDataMigrations),
       storage: createJSONStorage(() => getStorage(
         isTauriRuntime() ? createTauriBackend(TAURI_STORE_PATH) : localStorageBackend,
         persistenceCallbacks

@@ -22,11 +22,11 @@ describe('Habitron backups', () => {
     expect(() => parseBackup('{')).toThrow('not valid JSON');
     expect(() => parseBackup(JSON.stringify({ version: 5, habits: [] })))
       .toThrow('not a valid Habitron backup');
-    expect(() => parseBackup(toBackup(6, []))).toThrow('not a valid Habitron backup');
   });
 
-  it('rejects backups from other versions', () => {
-    expect(() => parseBackup(toBackup(3, [createHabit('Read', '')]))).toThrow('not a valid Habitron backup');
+  it('rejects backups from versions it cannot migrate', () => {
+    expect(() => parseBackup(toBackup(6, []))).toThrow('version 6');
+    expect(() => parseBackup(toBackup(3, [createHabit('Read', '')]))).toThrow('version 3');
   });
 
   it('rejects habits with invalid rules', () => {

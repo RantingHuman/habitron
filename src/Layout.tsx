@@ -18,7 +18,8 @@ const Layout = () => {
       <div className='min-h-screen flex items-center justify-center p-6 text-center'>
         {error ? (
           <div role='alert' className='max-w-md'>
-            <p className='mb-4'>Habitron could not load your saved data.</p>
+            <p className='mb-2'>Habitron could not load your saved data.</p>
+            <p className='mb-4 text-sm'>{error}</p>
             <Button name='retry-persistence' appearance='primary' onClick={handleRetry}>
               Try again
             </Button>
