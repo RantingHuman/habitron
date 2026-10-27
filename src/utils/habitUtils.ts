@@ -113,13 +113,14 @@ export const isHabitPausedOn = (habit: Habit, date: string) => isPausedIn(habit.
 export const isHabitPaused = (habit: Habit, today: string = getToday()) =>
   isHabitPausedOn(habit, today);
 
-// Sorts pauses and joins any that overlap or touch, so pauses never overlap
+// Sorts pauses and joins any that overlap, so pauses never overlap and each has its own first day.
+// Pauses that only touch stay apart, so resuming one never ends a pause planned to follow it
 export const mergePauses = (pauses: HabitPause[]): HabitPause[] =>
   [...pauses]
     .sort((a, b) => a.start.localeCompare(b.start))
     .reduce<HabitPause[]>((merged, pause) => {
       const last = merged[merged.length - 1];
-      if (!last || (last.end !== undefined && last.end < pause.start)) return [...merged, pause];
+      if (!last || (last.end !== undefined && last.end <= pause.start)) return [...merged, pause];
 
       const end = last.end === undefined || pause.end === undefined
         ? undefined
@@ -162,10 +163,19 @@ export const countCheckInsRemovedByPause = (habit: Habit, requested: HabitPause)
   return range ? habit.checkIns.filter(({ date }) => isPausedIn([range], date)).length : 0;
 };
 
-// Pauses from today until resumed
+// Pauses from today until resumed, or only until a pause planned for a later day begins, so the
+// planned pause survives a later resume. Pausing on the day a pause ended continues that pause
 export const pauseHabit = (habit: Habit, today: string = getToday()): Habit => {
   if (isHabitPausedOn(habit, today)) return habit;
-  return pauseDates(habit, { start: today }) ?? habit;
+
+  const endedToday = habit.pauses.find(({ end }) => end === today);
+  const base = endedToday ? removePause(habit, endedToday) : habit;
+  const nextStart = base.pauses
+    .map(({ start }) => start)
+    .filter((start) => start > today)
+    .sort()[0];
+  const start = endedToday?.start ?? today;
+  return pauseDates(base, nextStart ? { start, end: nextStart } : { start }) ?? habit;
 };
 
 // Ends only the pause covering today; earlier pauses and pauses planned for later days are kept

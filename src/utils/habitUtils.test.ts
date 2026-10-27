@@ -233,13 +233,26 @@ describe('pausing', () => {
     expect(isDueDay(resumeHabit(planned, '2026-11-10'), '2026-12-24')).toBe(false);
   });
 
+  it('pauses only until a planned pause begins, so resuming keeps the planned one', () => {
+    const planned = makeHabit({ pauses: [{ start: '2026-12-20', end: '2027-01-01' }] });
+    const paused = pauseHabit(planned, '2026-10-01');
+    const resumed = resumeHabit(paused, '2026-11-10');
+
+    expect(isDueDay(paused, '2026-11-10')).toBe(false);
+    expect(isDueDay(paused, '2026-12-24')).toBe(false);
+    expect(isDueDay(resumed, '2026-11-10')).toBe(true);
+    expect(dates('2026-12-20', 12).some((date) => isDueDay(resumed, date))).toBe(false);
+    expect(isDueDay(resumed, '2027-01-01')).toBe(true);
+  });
+
   it('ignores a pause while already paused', () => {
     const habit = pauseHabit(makeHabit(), '2026-09-22');
 
     expect(pauseHabit(habit, '2026-09-23')).toBe(habit);
   });
 
-  it('merges overlapping and touching pauses and keeps separate ones apart', () => {
+  // Touching pauses stay apart so resuming one never ends the other
+  it('merges overlapping pauses and keeps touching and separate ones apart', () => {
     expect(mergePauses([
       { start: '2026-09-10', end: '2026-09-12' },
       { start: '2026-09-01', end: '2026-09-05' },
@@ -249,7 +262,8 @@ describe('pausing', () => {
       { start: '2026-09-25', end: '2026-09-27' }
     ])).toEqual([
       { start: '2026-09-01', end: '2026-09-05' },
-      { start: '2026-09-10', end: '2026-09-16' },
+      { start: '2026-09-10', end: '2026-09-15' },
+      { start: '2026-09-15', end: '2026-09-16' },
       { start: '2026-09-20' }
     ]);
   });
@@ -309,7 +323,7 @@ describe('pausing dates', () => {
     expect(pauseDates(makeHabit(), { start: '2026-09-25', end: '2026-09-25' })).toBeUndefined();
   });
 
-  it('merges a range with the pauses it overlaps or touches', () => {
+  it('leaves no due day between a range and a pause it touches', () => {
     const habit = makeHabit({ pauses: [{ start: '2026-09-22', end: '2026-09-25' }] });
     const paused = pauseDates(habit, { start: '2026-09-25', end: '2026-09-27' })!;
 
