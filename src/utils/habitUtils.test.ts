@@ -4,7 +4,9 @@ import { HISTORY_DAYS_TO_SHOW } from './constants';
 import {
   archiveHabit,
   canCheckIn,
+  countCheckInsRemovedByPause,
   createHabit,
+  changePause,
   changeRules,
   getActivityCalendarData,
   getCurrentStreak,
@@ -15,7 +17,9 @@ import {
   isDueDay,
   isHabitPausedOn,
   mergePauses,
+  pauseDates,
   pauseHabit,
+  removePause,
   restoreHabit,
   resumeHabit,
   setCheckIn
@@ -233,6 +237,145 @@ describe('pausing', () => {
       { start: '2026-09-10', end: '2026-09-16' },
       { start: '2026-09-20' }
     ]);
+  });
+});
+
+describe('pausing dates', () => {
+  it('pauses only the days in the range, past or future', () => {
+    const habit = pauseDates(makeHabit(), { start: '2026-09-22', end: '2026-09-25' })!;
+
+    expect(isDueDay(habit, '2026-09-21')).toBe(true);
+    expect(isDueDay(habit, '2026-09-22')).toBe(false);
+    expect(isDueDay(habit, '2026-09-24')).toBe(false);
+    expect(canCheckIn(habit, '2026-09-24')).toBe(false);
+    expect(isDueDay(habit, '2026-09-25')).toBe(true);
+  });
+
+  it('removes the check-ins on paused days and keeps the others', () => {
+    const habit = makeHabit({ checkIns: dates('2026-09-19', 8).map((date) => checkIn(date)) });
+    const paused = pauseDates(habit, { start: '2026-09-22', end: '2026-09-25' })!;
+
+    expect(paused.checkIns.map(({ date }) => date)).toEqual(
+      ['2026-09-19', '2026-09-20', '2026-09-21', '2026-09-25', '2026-09-26']
+    );
+    // The pause neither builds nor breaks the streak
+    expect(getCurrentStreak(paused, '2026-09-26')).toBe(5);
+  });
+
+  it('removes every later check-in when the pause has no end', () => {
+    const habit = makeHabit({ checkIns: dates('2026-09-19', 5).map((date) => checkIn(date)) });
+    const paused = pauseDates(habit, { start: '2026-09-21' })!;
+
+    expect(paused.checkIns.map(({ date }) => date)).toEqual(['2026-09-19', '2026-09-20']);
+    expect(isDueDay(paused, '2026-12-01')).toBe(false);
+  });
+
+  it('cuts a range that starts before the start date to begin on the start date', () => {
+    const habit = makeHabit({ startDate: '2026-09-19' });
+    const paused = pauseDates(habit, { start: '2026-09-10', end: '2026-09-21' })!;
+    // A backfilled check-in from before the start date moves the start date back
+    const backfilled = setCheckIn(paused, '2026-09-15', { status: 'done' });
+
+    expect(isDueDay(paused, '2026-09-20')).toBe(false);
+    expect(isDueDay(paused, '2026-09-21')).toBe(true);
+    expect(canCheckIn(paused, '2026-09-15')).toBe(true);
+    expect(isDueDay(backfilled, '2026-09-16')).toBe(true);
+  });
+
+  it('rejects a range that ends before the start date', () => {
+    const habit = makeHabit({ startDate: '2026-09-19' });
+
+    expect(pauseDates(habit, { start: '2026-09-10', end: '2026-09-19' })).toBeUndefined();
+    expect(pauseDates(habit, { start: '2026-09-10', end: '2026-09-15' })).toBeUndefined();
+  });
+
+  it('rejects a range that ends before it starts', () => {
+    expect(pauseDates(makeHabit(), { start: '2026-09-25', end: '2026-09-22' })).toBeUndefined();
+    expect(pauseDates(makeHabit(), { start: '2026-09-25', end: '2026-09-25' })).toBeUndefined();
+  });
+
+  it('merges a range with the pauses it overlaps or touches', () => {
+    const habit = makeHabit({ pauses: [{ start: '2026-09-22', end: '2026-09-25' }] });
+    const paused = pauseDates(habit, { start: '2026-09-25', end: '2026-09-27' })!;
+
+    expect(isDueDay(paused, '2026-09-21')).toBe(true);
+    expect(dates('2026-09-22', 5).some((date) => isDueDay(paused, date))).toBe(false);
+    expect(isDueDay(paused, '2026-09-27')).toBe(true);
+  });
+
+  it('counts the check-ins a range would remove', () => {
+    const habit = makeHabit({ checkIns: dates('2026-09-19', 8).map((date) => checkIn(date, 'skipped')) });
+
+    expect(countCheckInsRemovedByPause(habit, { start: '2026-09-22', end: '2026-09-25' })).toBe(3);
+    expect(countCheckInsRemovedByPause(habit, { start: '2026-09-24' })).toBe(3);
+    expect(countCheckInsRemovedByPause(habit, { start: '2026-09-10', end: '2026-09-21' })).toBe(2);
+    expect(countCheckInsRemovedByPause(habit, { start: '2026-09-28', end: '2026-10-01' })).toBe(0);
+    expect(countCheckInsRemovedByPause(habit, { start: '2026-09-10', end: '2026-09-15' })).toBe(0);
+  });
+
+  it('removes the check-in for today when paused now', () => {
+    const habit = makeHabit({ checkIns: [checkIn('2026-09-21'), checkIn('2026-09-22')] });
+    const paused = pauseHabit(habit, '2026-09-22');
+
+    expect(paused.checkIns.map(({ date }) => date)).toEqual(['2026-09-21']);
+    expect(countCheckInsRemovedByPause(habit, { start: '2026-09-22' })).toBe(1);
+  });
+});
+
+describe('changing and removing pauses', () => {
+  const doneEveryDay = () => makeHabit({ checkIns: dates('2026-09-19', 8).map((date) => checkIn(date)) });
+  const pausedMidWeek = () => pauseDates(doneEveryDay(), { start: '2026-09-22', end: '2026-09-25' })!;
+
+  it('brings back the due days of a removed pause but not its check-ins', () => {
+    const habit = removePause(pausedMidWeek(), { start: '2026-09-22', end: '2026-09-25' });
+
+    expect(isDueDay(habit, '2026-09-23')).toBe(true);
+    expect(canCheckIn(habit, '2026-09-23')).toBe(true);
+    expect(isDayDone(habit, '2026-09-23')).toBe(false);
+    expect(getCurrentStreak(habit, '2026-09-26')).toBe(2);
+    expect(getStrengthScore(habit, '2026-09-26')).toBeLessThan(getStrengthScore(pausedMidWeek(), '2026-09-26'));
+  });
+
+  it('brings back the due days a shortened pause no longer covers, without their check-ins', () => {
+    const habit = changePause(pausedMidWeek(), { start: '2026-09-22', end: '2026-09-25' },
+      { start: '2026-09-22', end: '2026-09-23' })!;
+
+    expect(isDueDay(habit, '2026-09-22')).toBe(false);
+    expect(isDueDay(habit, '2026-09-23')).toBe(true);
+    expect(isDayDone(habit, '2026-09-23')).toBe(false);
+  });
+
+  it('removes the check-ins on days a lengthened pause newly covers', () => {
+    const before = pausedMidWeek();
+    const range = { start: '2026-09-20', end: '2026-09-25' };
+    const habit = changePause(before, { start: '2026-09-22', end: '2026-09-25' }, range)!;
+
+    expect(countCheckInsRemovedByPause(before, range)).toBe(2);
+    expect(habit.checkIns.map(({ date }) => date)).toEqual(['2026-09-19', '2026-09-25', '2026-09-26']);
+    expect(isDueDay(habit, '2026-09-20')).toBe(false);
+  });
+
+  it('merges a changed pause with another pause it now overlaps', () => {
+    const twoPauses = pauseDates(pausedMidWeek(), { start: '2026-09-28', end: '2026-09-30' })!;
+    const habit = changePause(twoPauses, { start: '2026-09-28', end: '2026-09-30' },
+      { start: '2026-09-24', end: '2026-10-02' })!;
+    const resumed = removePause(habit, { start: '2026-09-22', end: '2026-10-02' });
+
+    expect(dates('2026-09-22', 10).some((date) => isDueDay(habit, date))).toBe(false);
+    // The two became one pause, so removing it brings back every day
+    expect(dates('2026-09-22', 10).every((date) => isDueDay(resumed, date))).toBe(true);
+  });
+
+  it('rejects a change to a range that ends before the start date', () => {
+    expect(changePause(pausedMidWeek(), { start: '2026-09-22', end: '2026-09-25' },
+      { start: '2026-09-10', end: '2026-09-12' })).toBeUndefined();
+  });
+
+  it('can turn a closed pause into one that stays open', () => {
+    const habit = changePause(pausedMidWeek(), { start: '2026-09-22', end: '2026-09-25' }, { start: '2026-09-22' })!;
+
+    expect(isDueDay(habit, '2026-10-30')).toBe(false);
+    expect(habit.checkIns.map(({ date }) => date)).toEqual(['2026-09-19', '2026-09-20', '2026-09-21']);
   });
 });
 

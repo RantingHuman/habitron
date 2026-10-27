@@ -8,20 +8,31 @@ import Button from './buttons/Button';
 import HabitHistory from './HabitHistory';
 import useHabitronNavigation from '../hooks/useHabitronNavigation';
 import Card from './Card';
+import { addDays, format, parseISO } from 'date-fns';
+import { HabitPause } from '../types/';
+import PauseDialog from './dialogs/PauseDialog';
 import {
   archiveHabit,
+  countCheckInsRemovedByPause,
   getCurrentRules,
   getCurrentStreak,
   getStrengthScore,
   isHabitArchived,
   isHabitPaused,
   pauseHabit,
+  removePause,
   restoreHabit,
   resumeHabit
 } from '../utils/habitUtils';
-import { DELETE_HABIT_MESSAGE } from '../utils/constants';
+import { DATE_FORMAT_FULL, DELETE_HABIT_MESSAGE } from '../utils/constants';
 import StrengthRing from './StrengthRing';
-import { formatTarget } from '../utils/formatUtils';
+import { formatDayLabel, formatTarget } from '../utils/formatUtils';
+import { getToday } from '../utils/dateUtils';
+
+// A pause's end is the day the habit resumed; people read a range by its last paused day
+const describePause = ({ start, end }: HabitPause) => end
+  ? `${formatDayLabel(start)} – ${formatDayLabel(format(addDays(parseISO(end), -1), DATE_FORMAT_FULL))}`
+  : `From ${formatDayLabel(start)}, until resumed`;
 
 
 const HabitDetail = () => {
@@ -29,6 +40,9 @@ const HabitDetail = () => {
   const { navigateToHome, navigateToEditHabit } = useHabitronNavigation();
   const { getHabit, removeHabit, updateHabit } = useHabitronStore();
   const [showDialog, setShowDialog] = useState(false);
+  const [pauseNowRemovals, setPauseNowRemovals] = useState(0);
+  // The pause being edited, or null when adding one; undefined while the sheet is closed
+  const [editingPause, setEditingPause] = useState<HabitPause | null | undefined>(undefined);
 
   const habit = getHabit(id);
   
@@ -58,9 +72,19 @@ const HabitDetail = () => {
   }
 
   const handleTogglePause = () => {
-    if (habit) {
-      updateHabit(isPaused ? resumeHabit(habit) : pauseHabit(habit));
+    if (!habit) return;
+    if (isPaused) {
+      updateHabit(resumeHabit(habit));
+      return;
     }
+    const removals = countCheckInsRemovedByPause(habit, { start: getToday() });
+    if (removals > 0) setPauseNowRemovals(removals);
+    else updateHabit(pauseHabit(habit));
+  }
+
+  const handleConfirmPauseNow = () => {
+    if (habit) updateHabit(pauseHabit(habit));
+    setPauseNowRemovals(0);
   }
 
 
@@ -84,14 +108,45 @@ const HabitDetail = () => {
           ) : (
             <>
               <Button name='toggle-pause' appearance='secondary' onClick={handleTogglePause}>
-                {isPaused ? 'Resume' : 'Pause'}
+                {isPaused ? 'Resume' : 'Pause now'}
               </Button>
+              <Button name='pause-dates' appearance='secondary' onClick={() => setEditingPause(null)}>Pause dates…</Button>
               <Button name='archive' appearance='secondary' onClick={handleArchive}>Archive</Button>
               <Button name='edit' appearance='primary' onClick={handleEdit}>Edit</Button>
             </>
           )}
           <Button name='delete' appearance='danger' onClick={() => setShowDialog(true)}>Delete</Button>
         </div>
+
+        {habit.pauses.length > 0 && (
+          <section className='mt-4'>
+            <h3 className='font-semibold'>Pauses</h3>
+            <ul>
+              {habit.pauses.map((pause) => (
+                <li key={pause.start} className='flex items-center justify-between gap-2 py-1'>
+                  <span>{describePause(pause)}</span>
+                  {!isArchived && (
+                    <span className='flex gap-2'>
+                      <Button name='edit-pause' appearance='transparent' onClick={() => setEditingPause(pause)}>Edit</Button>
+                      <Button name='delete-pause' appearance='transparent'
+                        onClick={() => updateHabit(removePause(habit, pause))}>Delete</Button>
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {editingPause !== undefined &&
+          <PauseDialog habit={habit} pause={editingPause ?? undefined} onClose={() => setEditingPause(undefined)} />
+        }
+
+        {pauseNowRemovals > 0 &&
+          <ConfirmationDialog isOpen title='Pause now'
+            message={`Pausing removes ${pauseNowRemovals} ${pauseNowRemovals === 1 ? 'check-in' : 'check-ins'} on the paused days.`}
+            onConfirm={handleConfirmPauseNow} onCancel={() => setPauseNowRemovals(0)} />
+        }
 
         { showDialog &&
           <ConfirmationDialog isOpen={showDialog} title='Delete Habit' message={DELETE_HABIT_MESSAGE}
