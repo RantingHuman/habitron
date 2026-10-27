@@ -35,7 +35,7 @@ A day the habit's schedule expects it to be done, on or after its start date, ou
 _Avoid_: Scheduled day
 
 **Pause**:
-A period during which a habit has no due days, so it neither builds nor breaks a streak. A pause may cover past days, and pauses never overlap.
+A period during which a habit has no due days and takes no check-ins, so it neither builds nor breaks a streak. A pause may cover past or future days but not days before the start date, and pausing days removes any check-ins on them. A pause either ends on the day the habit resumed or is still open. Pauses never overlap. A pause can be changed or removed afterwards; that brings back due days but not the check-ins it removed.
 
 **Archived habit**:
 A habit the user has stopped doing but whose history is kept. While archived it is hidden, has no due days, and cannot take check-ins; it can be restored. Deleting a habit is different: it permanently removes the habit and its check-ins.
