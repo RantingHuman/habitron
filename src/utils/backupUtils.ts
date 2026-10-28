@@ -1,10 +1,10 @@
 import { CheckIn, Habit, HabitPause, HabitRules, HabitSchedule, HabitTarget, Weekday } from '../types/';
 import { WEEKDAY_FREQUENCIES } from './constants';
-
-const BACKUP_VERSION = 5;
+import { mergePauses } from './habitUtils';
+import { MigrationChain, savedDataMigrations } from './migrationUtils';
 
 export interface HabitronBackup {
-  version: typeof BACKUP_VERSION;
+  version: number;
   exportedAt: string;
   habits: Habit[];
 }
@@ -99,7 +99,7 @@ const isHabit = (value: unknown): value is Habit =>
 
 export const serializeBackup = (habits: Habit[]) => {
   const backup: HabitronBackup = {
-    version: BACKUP_VERSION,
+    version: savedDataMigrations.version,
     exportedAt: new Date().toISOString(),
     habits
   };
@@ -107,7 +107,8 @@ export const serializeBackup = (habits: Habit[]) => {
   return JSON.stringify(backup, null, 2);
 };
 
-export const parseBackup = (content: string): Habit[] => {
+// Older backups run through the same migrations as stored data before they're validated
+export const parseBackup = (content: string, migrations: MigrationChain = savedDataMigrations): Habit[] => {
   let parsed: unknown;
 
   try {
@@ -118,13 +119,15 @@ export const parseBackup = (content: string): Habit[] => {
 
   if (!isRecord(parsed)
     || typeof parsed.exportedAt !== 'string'
+    || typeof parsed.version !== 'number'
     || !Array.isArray(parsed.habits)) {
     throw new Error('The backup file is not a valid Habitron backup.');
   }
 
-  const { habits } = parsed;
-  if (parsed.version === BACKUP_VERSION && habits.every(isHabit)) {
-    return habits;
+  const { habits } = migrations.migrate({ habits: parsed.habits }, parsed.version);
+  if (Array.isArray(habits) && habits.every(isHabit)) {
+    // An edited backup may hold overlapping pauses; joining them keeps each pause's first day unique
+    return habits.map((habit) => ({ ...habit, pauses: mergePauses(habit.pauses) }));
   }
 
   throw new Error('The backup file is not a valid Habitron backup.');

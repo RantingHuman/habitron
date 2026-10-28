@@ -2,7 +2,7 @@ import { addDays, differenceInCalendarDays, format, parseISO, subDays } from 'da
 import { CheckIn, CheckInValue, Habit, HabitPause, HabitReminder, HabitRules, HabitSchedule, HabitTarget, Weekday } from '../types/';
 import {v4 as uuidv4} from 'uuid';
 import { DATE_FORMAT_FULL, HISTORY_DAYS_TO_SHOW } from './constants';
-import { getToday, getLastNDates } from './dateUtils';
+import { getToday, getLastNDates, shiftDate } from './dateUtils';
 
 // What makes a habit measurable; without it the habit is a yes/no habit
 export interface HabitMeasure {
@@ -105,19 +105,28 @@ const isScheduleDay = (habit: Habit, date: string) => {
 
 // Pauses
 
-export const isHabitPausedOn = (habit: Habit, date: string) =>
-  habit.pauses.some(({ start, end }) => start <= date && (!end || date < end));
+const isPausedIn = (pauses: HabitPause[], date: string) =>
+  pauses.some(({ start, end }) => start <= date && (!end || date < end));
+
+// A pause's `end` is the day the habit resumed, while people name a range by its last paused day
+export const getLastPausedDay = ({ end }: HabitPause) => end && shiftDate(end, -1);
+
+export const pauseThrough = (start: string, lastDay?: string): HabitPause =>
+  lastDay ? { start, end: shiftDate(lastDay, 1) } : { start };
+
+export const isHabitPausedOn = (habit: Habit, date: string) => isPausedIn(habit.pauses, date);
 
 export const isHabitPaused = (habit: Habit, today: string = getToday()) =>
   isHabitPausedOn(habit, today);
 
-// Sorts pauses and joins any that overlap or touch, so pauses never overlap
+// Sorts pauses and joins any that overlap, so pauses never overlap and each has its own first day.
+// Pauses that only touch stay apart, so resuming one never ends a pause planned to follow it
 export const mergePauses = (pauses: HabitPause[]): HabitPause[] =>
   [...pauses]
     .sort((a, b) => a.start.localeCompare(b.start))
     .reduce<HabitPause[]>((merged, pause) => {
       const last = merged[merged.length - 1];
-      if (!last || (last.end !== undefined && last.end < pause.start)) return [...merged, pause];
+      if (!last || (last.end !== undefined && last.end <= pause.start)) return [...merged, pause];
 
       const end = last.end === undefined || pause.end === undefined
         ? undefined
@@ -125,16 +134,62 @@ export const mergePauses = (pauses: HabitPause[]): HabitPause[] =>
       return [...merged.slice(0, -1), end === undefined ? { start: last.start } : { start: last.start, end }];
     }, []);
 
-export const pauseHabit = (habit: Habit, today: string = getToday()): Habit => {
-  if (isHabitPausedOn(habit, today)) return habit;
-  return { ...habit, pauses: mergePauses([...habit.pauses, { start: today }]) };
+// A pause cannot cover days before the start date, so a range is cut to start there; undefined when
+// no day of the range is left
+const clampPause = (habit: Habit, { start, end }: HabitPause): HabitPause | undefined => {
+  const clampedStart = start < habit.startDate ? habit.startDate : start;
+  if (end === undefined) return { start: clampedStart };
+  return end > clampedStart ? { start: clampedStart, end } : undefined;
 };
 
+// Pauses the days of a range, which may lie in the past or the future, and removes their check-ins.
+// `end` is the first day after the range, or absent for a pause that stays open until resumed.
+// Undefined when the range is rejected: it ends before it starts or before the start date
+export const pauseDates = (habit: Habit, requested: HabitPause): Habit | undefined => {
+  const range = clampPause(habit, requested);
+  if (!range) return undefined;
+
+  const pauses = mergePauses([...habit.pauses, range]);
+  const checkIns = habit.checkIns.filter(({ date }) => !isPausedIn([range], date));
+  return { ...habit, pauses, checkIns };
+};
+
+// Pauses never overlap, so a pause is identified by its first day. Removing one brings back its
+// due days but not the check-ins it removed
+export const removePause = (habit: Habit, pause: HabitPause): Habit =>
+  ({ ...habit, pauses: habit.pauses.filter(({ start }) => start !== pause.start) });
+
+// Follows the same rules as pausing a range; undefined when the new range is rejected
+export const changePause = (habit: Habit, pause: HabitPause, range: HabitPause): Habit | undefined =>
+  pauseDates(removePause(habit, pause), range);
+
+// How many check-ins pausing a range would remove, so the user can confirm first
+export const countCheckInsRemovedByPause = (habit: Habit, requested: HabitPause) => {
+  const range = clampPause(habit, requested);
+  return range ? habit.checkIns.filter(({ date }) => isPausedIn([range], date)).length : 0;
+};
+
+// Pauses from today until resumed, or only until a pause planned for a later day begins, so the
+// planned pause survives a later resume. Pausing on the day a pause ended continues that pause
+export const pauseHabit = (habit: Habit, today: string = getToday()): Habit => {
+  if (isHabitPausedOn(habit, today)) return habit;
+
+  const endedToday = habit.pauses.find(({ end }) => end === today);
+  const base = endedToday ? removePause(habit, endedToday) : habit;
+  const nextStart = base.pauses
+    .map(({ start }) => start)
+    .filter((start) => start > today)
+    .sort()[0];
+  const start = endedToday?.start ?? today;
+  return pauseDates(base, nextStart ? { start, end: nextStart } : { start }) ?? habit;
+};
+
+// Ends only the pause covering today; earlier pauses and pauses planned for later days are kept
 export const resumeHabit = (habit: Habit, today: string = getToday()): Habit => {
   const pauses = habit.pauses.flatMap((pause) => {
-    if (pause.end && pause.end <= today) return [pause];
-    // A pause that has not started yet (e.g. paused and resumed on the same day) leaves no trace
-    if (pause.start >= today) return [];
+    if (!isPausedIn([pause], today)) return [pause];
+    // A pause that started today (paused and resumed on the same day) leaves no trace
+    if (pause.start === today) return [];
     return [{ ...pause, end: today }];
   });
   return { ...habit, pauses };

@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { createHabitSlice, type HabitSlice } from "./slices/habitSlice";
 import { createSystemSlice, type SystemSlice } from "./slices/systemSlice";
 import { isTauriRuntime } from '../utils/platform';
+import { createLoadRecovery, persistMigrations, savedDataMigrations } from '../utils/migrationUtils';
 
 interface PersistenceState {
   hasHydrated: boolean;
@@ -24,6 +25,7 @@ export const usePersistenceStore = create<PersistenceState>((set) => ({
 }));
 
 const TAURI_STORE_PATH = './habitron.bin';
+const STORE_NAME = 'habitron';
 
 interface KeyValueBackend {
   get: (name: string) => Promise<string | null>;
@@ -58,7 +60,6 @@ const createTauriBackend = (path: string): KeyValueBackend => {
   };
 };
 
-// Lets the app run in a plain browser (`npm run dev`) without the Tauri runtime
 const localStorageBackend: KeyValueBackend = {
   get: async (name) => window.localStorage.getItem(name),
   set: async (name, value) => window.localStorage.setItem(name, value),
@@ -110,6 +111,9 @@ const getStorage = (backend: KeyValueBackend, callbacks: PersistenceCallbacks): 
 type HabitronState = HabitSlice & SystemSlice;
 type PersistedHabitronState = Pick<HabitronState, 'habits' | 'darkMode'>;
 
+// Lets the app run in a plain browser (`npm run dev`) without the Tauri runtime
+const backend = isTauriRuntime() ? createTauriBackend(TAURI_STORE_PATH) : localStorageBackend;
+
 const persistenceCallbacks: PersistenceCallbacks = {
   onError: (error) => usePersistenceStore.getState().setError(getErrorMessage(error)),
   onSuccess: () => usePersistenceStore.getState().clearError()
@@ -122,14 +126,10 @@ export const useHabitronStore = create<HabitronState>()(
       ...createSystemSlice(...a)
     }),
     {
-      name: 'habitron',
-      // Bump when the persisted shape changes. Data saved under another version is discarded, not
-      // migrated, because the app has no production users yet
-      version: 5,
-      storage: createJSONStorage(() => getStorage(
-        isTauriRuntime() ? createTauriBackend(TAURI_STORE_PATH) : localStorageBackend,
-        persistenceCallbacks
-      )),
+      name: STORE_NAME,
+      // Data saved under an older version runs the migration chain on load (ADR 0002)
+      ...persistMigrations<PersistedHabitronState>(savedDataMigrations),
+      storage: createJSONStorage(() => getStorage(backend, persistenceCallbacks)),
       partialize: (state): PersistedHabitronState => ({
         habits: state.habits,
         darkMode: state.darkMode
@@ -146,3 +146,6 @@ export const useHabitronStore = create<HabitronState>()(
       }
     })
 );
+
+// Offered when saved data can't be loaded: save it to a file as stored, or start fresh
+export const loadRecovery = createLoadRecovery(STORE_NAME, backend, () => useHabitronStore.persist.rehydrate());

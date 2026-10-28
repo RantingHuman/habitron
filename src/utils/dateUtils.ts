@@ -1,4 +1,4 @@
-import { format, subDays, eachDayOfInterval } from 'date-fns';
+import { addDays, format, parseISO, subDays, eachDayOfInterval } from 'date-fns';
 import { DATE_FORMAT_FULL } from './constants';
 
 export const getLastNDates = (n: number, referenceDate: Date = new Date()) => {
@@ -18,3 +18,6 @@ export const getToday = (formatString: string = DATE_FORMAT_FULL) => {
 export const getCurrentTimestamp = () => {
   return new Date().getTime();
 }
+
+export const shiftDate = (date: string, days: number) =>
+  format(addDays(parseISO(date), days), DATE_FORMAT_FULL);
